@@ -19,7 +19,7 @@
  * Version info
  *
  * @package    report
- * @subpackage patches
+ * @subpackage vmoodle
  * @copyright  2010 Valery Fremaux
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -27,7 +27,8 @@
 defined('MOODLE_INTERNAL') || die;
 
 $plugin->version   = 2013072800;        // The current plugin version (Date: YYYYMMDDXX)
-$plugin->requires  = 2012110900;        // Requires this Moodle version
+$plugin->requires  = 2013040500;        // Requires this Moodle version
 $plugin->component = 'report_vmoodle'; // Full name of the plugin (used for diagnostics)
-$plugin->release = '2.4.0 (Build 2013072800)'; // Full name of the plugin (used for diagnostics)
-
+$plugin->release = '2.5.0 (Build 2013072800)'; // Full name of the plugin (used for diagnostics)
+$plugin->maturity = MATURITY_STABLE;
+$plugin->dependencies = array('block_vmoodle' => 2013020801);
