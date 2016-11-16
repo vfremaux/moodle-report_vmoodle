@@ -15,19 +15,21 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version info
+ * Version details.
  *
  * @package     report_vmoodle
  * @category    report
- * @copyright   2010 Valery Fremaux
+ * @author      Valery Fremaux <valery.fremaux@gmail.com>
+ * @copyright   2010 onwards Valery Fremaux (http://www.mylearningfactory.com)
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+
 defined('MOODLE_INTERNAL') || die;
 
 $plugin->version   = 2016030800;        // The current plugin version (Date: YYYYMMDDXX).
-$plugin->requires  = 2014110400;        // Requires this Moodle version.
+$plugin->requires  = 2015111100;        // Requires this Moodle version.
 $plugin->component = 'report_vmoodle'; // Full name of the plugin (used for diagnostics).
-$plugin->release = '2.8.0 (Build 2016030800)';
+$plugin->release = '3.0.0 (Build 2016030800)';
 $plugin->maturity = MATURITY_STABLE;
 
 // Non moodle attributes.
