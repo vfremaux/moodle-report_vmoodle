@@ -1,3 +1,47 @@
 .tabtree .tabrow0 {
-	line-height:2em;
+    line-height:2em;
+}
+
+.outer-graphbar {
+    border 1px solid #808080;
+    margin 3px;
+    padding 1px;
+    height: 20px;
+}
+
+.inner-graphbar {
+    height: 16px;
+    background: #b4ddb4; /* Old browsers */
+    background: -moz-linear-gradient(top, #b4ddb4 0%, #83c783 17%, #52b152 33%, #008a00 67%, #005700 83%, #002400 100%); /* FF3.6+ */
+    background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#b4ddb4), color-stop(17%,#83c783), color-stop(33%,#52b152), color-stop(67%,#008a00), color-stop(83%,#005700), color-stop(100%,#002400)); /* Chrome,Safari4+ */
+    background: -webkit-linear-gradient(top, #b4ddb4 0%,#83c783 17%,#52b152 33%,#008a00 67%,#005700 83%,#002400 100%); /* Chrome10+,Safari5.1+ */
+    background: -o-linear-gradient(top, #b4ddb4 0%,#83c783 17%,#52b152 33%,#008a00 67%,#005700 83%,#002400 100%); /* Opera 11.10+ */
+    background: -ms-linear-gradient(top, #b4ddb4 0%,#83c783 17%,#52b152 33%,#008a00 67%,#005700 83%,#002400 100%); /* IE10+ */
+    background: linear-gradient(to bottom, #b4ddb4 0%,#83c783 17%,#52b152 33%,#008a00 67%,#005700 83%,#002400 100%); /* W3C */
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#b4ddb4', endColorstr='#002400',GradientType=0 ); /* IE6-9 */
+}
+
+.vmoodle-report-normal {
+    background-color: #80F25E;
+    padding: 5px;
+}
+
+.vmoodle-report-notice {
+    background-color: #F8FE83;
+    padding: 5px;
+}
+
+.vmoodle-report-warning {
+    background-color: #F8E603;
+    padding: 5px;
+}
+
+.vmoodle-report-issue {
+    background-color: #FB9700;
+    padding: 5px;
+}
+
+.vmoodle-report-error {
+    background-color: #FF5422;
+    padding: 5px;
 }

@@ -14,24 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+defined('MOODLE_INTERNAL') || die();
+
 /**
- * Version details.
+ * Capabilities
  *
  * @package     report_vmoodle
  * @category    report
- * @author      Valery Fremaux <valery.fremaux@gmail.com>
- * @copyright   2010 onwards Valery Fremaux (http://www.mylearningfactory.com)
+ * @copyright   2014 Valery Fremaux / MyLearningFactory (http://www.mylearningfactory.com)
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die;
+$capabilities = array(
 
-$plugin->version   = 2016030800;        // The current plugin version (Date: YYYYMMDDXX).
-$plugin->requires  = 2012110900;        // Requires this Moodle version.
-$plugin->component = 'report_vmoodle'; // Full name of the plugin (used for diagnostics).
-$plugin->release = '2.7.0 (Build 2016030800)';
-$plugin->maturity = MATURITY_STABLE;
-
-// Non moodle attributes.
-$plugin->codeincrement = '2.7.0000';
-
+    'report/vmoodle:view' => array(
+        'riskbitmask' => RISK_PERSONAL,
+        'captype' => 'read',
+        'contextlevel' => CONTEXT_SYSTEM,
+        'archetypes' => array(
+            'manager' => CAP_ALLOW
+        ),
+    )
+);

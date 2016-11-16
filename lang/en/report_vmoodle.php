@@ -1,9 +1,26 @@
 <?php
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+$string['vmoodle:view'] = 'Can see VMoodle reports ';
 
 $string['addeddate'] = 'Creation date: ';
 $string['asxls'] = 'Export to Excel (UTF8)';
 $string['asxlslatin'] = 'Export to Excel (ISO-8859-1)';
 $string['allnodes'] = 'All nodes';
+$string['allhits'] = 'All queries';
 $string['apply'] = 'Apply';
 $string['assignmenttypes'] = 'Assignment types';
 $string['blocks'] = 'Blocks (learning design)';
@@ -14,15 +31,24 @@ $string['coursetotals'] = 'Course total';
 $string['created'] = 'Created in ';
 $string['createdbefore'] = 'Created until';
 $string['distinctusers'] = 'Distinct users';
+$string['events'] = 'Q';
 $string['forumtypes'] = 'Forum types';
 $string['formats'] = 'Course formats';
+$string['graphs'] = 'Trends';
 $string['individualconnections'] = 'Individual connections';
 $string['hostname'] = 'Host';
+$string['logs'] = 'Logs';
+$string['logsize'] = 'Size';
+$string['periodmonth'] = 'Month';
+$string['onlineratio'] = 'Online ratio over registered';
+$string['usercount'] = 'Users';
 $string['modules'] = 'Modules (learning design)';
 $string['networktotal'] = 'Network total';
 $string['nodata'] = 'No data';
 $string['objectcount'] = 'Count';
 $string['objecttype'] = 'Type of object';
+$string['online'] = 'Online users';
+$string['onlineusers'] = 'Online users';
 $string['overalmonitoring'] = 'Global stats over network';
 $string['pluginname'] = 'VMoodle network report';
 $string['questiontypes'] = 'Question Types';

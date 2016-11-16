@@ -1,7 +1,24 @@
 <?php
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+$string['vmoodle:view'] = 'Peut voir les rapports VMoodle ';
 
 $string['addeddate'] = 'Date de mise en oeuvre : ';
-$string['allnodes'] = 'Tous le réseau';
+$string['allnodes'] = 'Tout le réseau';
+$string['allhits'] = 'Toutes les requêtes';
 $string['apply'] = 'Appliquer';
 $string['assignmenttypes'] = 'Types de devoir';
 $string['asxls'] = 'Exporter vers Excel (UTF8)';
@@ -14,15 +31,24 @@ $string['coursetotals'] = 'Totaux d\'usages des cours';
 $string['created'] = 'Crées en';
 $string['createdbefore'] = 'Crées jusqu\'à';
 $string['distinctusers'] = 'Utilisateurs distincts';
+$string['events'] = 'Q';
 $string['formats'] = 'Formats de cours';
 $string['forumtypes'] = 'Types de forums';
+$string['graphs'] = 'Tendances';
 $string['individualconnections'] = 'Connexions distinctes';
 $string['hostname'] = 'Hôte';
+$string['logs'] = 'Historiques';
+$string['periodmonth'] = 'Mois';
+$string['logsize'] = 'Taille';
 $string['modules'] = 'Usage des modules (conception pédagogique)';
 $string['networktotal'] = 'total du réseau';
 $string['nodata'] = 'Aucune donnée';
 $string['objectcount'] = 'Nombre d\'objets';
 $string['objecttype'] = 'Type d\'objet';
+$string['online'] = 'Utilisateurs en ligne';
+$string['onlineusers'] = 'Utilisateurs en ligne';
+$string['onlineratio'] = 'Taux de présence';
+$string['usercount'] = 'Utilisateurs';
 $string['overalmonitoring'] = 'Statistiques globales';
 $string['pluginname'] = 'Rapport de réseau VMoodle';
 $string['questiontypes'] = 'Types de question';
