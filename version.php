@@ -31,6 +31,7 @@ $plugin->requires  = 2017110800;        // Requires this Moodle version.
 $plugin->component = 'report_vmoodle'; // Full name of the plugin (used for diagnostics).
 $plugin->release = '3.4.0 (Build 2016030800)';
 $plugin->maturity = MATURITY_STABLE;
+$plugin->dependencies = array('local/vmoodle' => 2017090101);
 
 // Non moodle attributes.
 $plugin->codeincrement = '3.4.0000';
