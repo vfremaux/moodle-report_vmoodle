@@ -62,10 +62,11 @@ if (is_dir($CFG->dirroot.'/local/staticguitexts')) {
 }
 
 $logmanager = get_log_manager();
-$readers = $logmanager->get_readers('\core\log\sql_select_reader');
+$readers = $logmanager->get_readers('\core\log\sql_reader');
 $reader = reset($readers);
 
 if (empty($reader)) {
+    $str .= $OUTPUT->notification(get_string('nologreader', 'report_vmoodle'));
     return false; // No log reader found.
 }
 
@@ -78,6 +79,8 @@ if ($reader instanceof \logstore_standard\log\store) {
     $logtable = 'log';
     $timefield = 'time';
 } else {
+    $class = get_class($reader);
+    $str .= $OUTPUT->notification(get_string('nologstore', 'report_vmoodle', $class));
     return;
 }
 
@@ -90,6 +93,9 @@ $yearlytotalstr = get_string('totalyearly', 'report_vmoodle');
 $shortyearlytotalstr = get_string('totalyearlyshort', 'report_vmoodle');
 $actionclause = (@$SESSION->vmoodle_stat_allhits) ? '' : " action = '{$loginaction}' AND ";
 foreach ($vhosts as $vhost) {
+
+    $vhostname = report_vmoodle_get_full_name($vhost);
+
     $str .= '<td valign="top">';
     if ($SESSION->vmoodle_stat_distinct_users) {
         $sql = "
@@ -125,7 +131,7 @@ foreach ($vhosts as $vhost) {
 
     $str .= '<table width="100%" class="generaltable">';
     $str .= '<tr>';
-    $str .= '<th colspan="2" class="header c0" style="line-height:20px" >'.$vhost->name.'</th>';
+    $str .= '<th colspan="2" class="header c0" style="line-height:20px" >'.$vhostname.'</th>';
     $str .= '</tr>';
 
     $yearly = 0;
@@ -186,7 +192,7 @@ $jqplot = report_vmoodle_prepare_graph_structure(get_string('events', 'report_vm
 $i = 0;
 foreach ($vhosts as $vhost) {
     $i++;
-    $str .= $OUTPUT->heading($vhost->name, 3);
+    $str .= $OUTPUT->heading(report_vmoodle_get_full_name($vhost), 3);
     if (!empty($cnxs[$vhost->name])) {
         $graphdata = array();
         foreach ($cnxs[$vhost->name] as $m => $value) {
@@ -238,3 +244,13 @@ if (!empty($overalmonthly)) {
     $str .= local_vflibs_jqplot_print_graph('plotlog'.$i, $jqplot, $graphdata, 750, 250, 'margin:20px;', true);
 }
 
+function report_vmoodle_get_full_name($vhost) {
+    global $DB;
+
+    $mnetname = '';
+    if ($mneth = $DB->get_record('mnet_host', array('wwwroot' => $vhost->vhostname))) {
+        return $vhost->name." ({$mneth->name})";
+    }
+
+    return $vhost->name;
+}
