@@ -47,3 +47,17 @@ if (is_dir($CFG->dirroot.'/local/adminsettings')) {
 if ($hasconfig) {
     $ADMIN->add('reports', new admin_externalpage('reportvmoodleext', get_string('pluginname', 'report_vmoodle'), "$CFG->wwwroot/report/vmoodle/view.php", 'moodle/site:config'));
 }
+
+if ($hassiteconfig) {
+    $yearopts = array(0 => 0, 1 => 1, 2 => 2, 3 => 3, 4 => 4, 5 => 5);
+
+    $key = 'report_vmoodle/backexploredepth';
+    $label = get_string('configbackexploredepth', 'report_vmoodle');
+    $desc = get_string('configbackexploredepth_desc', 'report_vmoodle');
+    $settings->add(new admin_setting_configselect($key, $label, $desc, 0, $yearopts));
+
+    $key = 'report_vmoodle/profilefields';
+    $label = get_string('configprofilefields', 'report_vmoodle');
+    $desc = get_string('configprofilefields_desc', 'report_vmoodle');
+    $settings->add(new admin_setting_configtext($key, $label, $desc, ''));
+}

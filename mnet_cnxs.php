@@ -28,32 +28,25 @@ require_once($CFG->dirroot.'/report/vmoodle/locallib.php');
 require_once($CFG->dirroot.'/local/vflibs/jqplotlib.php');
 local_vflibs_require_jqplot_libs();
 
-$year = optional_param('year', 2010, PARAM_INT);
+$year = optional_param('year', date('Y'), PARAM_INT);
 $SESSION->vmoodle_stat_distinct_users = optional_param('distinctusers', @$SESSION->vmoodle_stat_distinct_users, PARAM_INT);
 $SESSION->vmoodle_stat_allhits = optional_param('allhits', @$SESSION->vmoodle_stat_allhits, PARAM_INT);
 
-$str = '';
-$str .= "<form name=\"chooseyearform\">";
-for ($i = 0 ; $i < 15 ; $i++) {
-    $years[2009 + $i] = 2009 + $i;
-}
-
 $distinctchecked = ($SESSION->vmoodle_stat_distinct_users) ? 'checked="checked"' : '';
 $individualchecked = (!$SESSION->vmoodle_stat_distinct_users) ? 'checked="checked"' : '';
-$allhitschecked = ($SESSION->vmoodle_stat_allhits && !$SESSION->vmoodle_stat_distinct_users) ? 'checked="checked"' : '';
+$allhitschecked = (!empty($SESSION->vmoodle_stat_allhits)) ? 'checked="checked"' : '';
 
 $allhitsdisabled = ($distinctchecked) ? 'disabled' : '';
 
-$str.= html_writer::select($years, 'year', $year, array());
-$str .= " <input type=\"radio\" name=\"distinctusers\" value=\"1\" $distinctchecked />";
-$str .= get_string('distinctusers', 'report_vmoodle');
-$str .= " - <input type=\"radio\" name=\"distinctusers\" value=\"0\" $individualchecked />";
-$str .= get_string('individualconnections', 'report_vmoodle');
-$str .= " - <input type=\"checkbox\" name=\"allhits\" value=\"0\" $allhitschecked $allhitsdisabled />";
-$str .= get_string('allhits', 'report_vmoodle');
-$gostr = get_string('apply', 'report_vmoodle');
-$str .= " <input type=\"submit\" value=\"$gostr\" />";
-$str .= '</form>';
+$additions = " <input type=\"radio\" name=\"distinctusers\" value=\"1\" $distinctchecked />";
+$additions .= get_string('distinctusers', 'report_vmoodle');
+$additions .= " - <input type=\"radio\" name=\"distinctusers\" value=\"0\" $individualchecked />";
+$additions .= get_string('individualconnections', 'report_vmoodle');
+$additions .= " - <input type=\"checkbox\" name=\"allhits\" value=\"1\" $allhitschecked $allhitsdisabled />";
+$additions .= get_string('allhits', 'report_vmoodle');
+
+$str = '';
+$str .= $renderer->filter_form($additions, false);
 
 $str .= $OUTPUT->heading(get_string('cnxs', 'report_vmoodle'), 2);
 
@@ -84,19 +77,37 @@ if ($reader instanceof \logstore_standard\log\store) {
     return;
 }
 
-$str .= '<table width="100%"><tr>';
-
 $stdresultarr = array();
 $col = 0;
 $overall = 0;
 $yearlytotalstr = get_string('totalyearly', 'report_vmoodle');
 $shortyearlytotalstr = get_string('totalyearlyshort', 'report_vmoodle');
 $actionclause = (@$SESSION->vmoodle_stat_allhits) ? '' : " action = '{$loginaction}' AND ";
+
+$hostnamestr = get_string('hostname', 'report_vmoodle');
+$jan = get_string('january', 'report_vmoodle');
+$feb = get_string('february', 'report_vmoodle');
+$mar = get_string('march', 'report_vmoodle');
+$apr = get_string('april', 'report_vmoodle');
+$jun = get_string('june', 'report_vmoodle');
+$jul = get_string('july', 'report_vmoodle');
+$aug = get_string('august', 'report_vmoodle');
+$sep = get_string('september', 'report_vmoodle');
+$oct = get_string('october', 'report_vmoodle');
+$nov = get_string('november', 'report_vmoodle');
+$dec = get_string('december', 'report_vmoodle');
+$totalstr = get_string('year', 'report_vmoodle');
+
+$table = new html_table();
+$table->head = array($hostnamestr, $jan, $feb, $mar, $apr, $jun, $jul,  $aug, $sep, $oct, $nov, $dec, $totalstr);
+$table->size = array('25%', '5%', '5%', '5%', '5%', '5%', '5%', '5%', '5%', '5%', '5%', '5%', '5%', '5%');
+$table->align = array('left', 'center', 'center', 'center', 'center', 'center', 'center', 'center', 'center',
+                      'center', 'center', 'center', 'center', 'center');
+
 foreach ($vhosts as $vhost) {
 
-    $vhostname = report_vmoodle_get_full_name($vhost);
+    $vhostname = $renderer->host_full_name($vhost);
 
-    $str .= '<td valign="top">';
     if ($SESSION->vmoodle_stat_distinct_users) {
         $sql = "
             SELECT
@@ -129,10 +140,8 @@ foreach ($vhosts as $vhost) {
         ";
     }
 
-    $str .= '<table width="100%" class="generaltable">';
-    $str .= '<tr>';
-    $str .= '<th colspan="2" class="header c0" style="line-height:20px" >'.$vhostname.'</th>';
-    $str .= '</tr>';
+    $row = array();
+    $row[] = $vhostname;
 
     $yearly = 0;
     $r = 0;
@@ -143,46 +152,19 @@ foreach ($vhosts as $vhost) {
             $yearly = $yearly + $cnxs[$vhost->name][$m];
             $overall += $cnxs[$vhost->name][$m];
             $overalmonthly[$m] = @$overalmonthly[$m] + $cnxs[$vhost->name][$m];
-            $str .= '<tr class="row r'.$r.'">';
-            $str .= '<td width="80%" class="cell c0" style="border:1px solid #808080">'.$m.'</td>';
-            $str .= '<td width="20%" class="cell c1" style="border:1px solid #808080">'.$cnxs[$vhost->name][$m].'</td>';
-            $str .= '</tr>';
-            $r = ($r + 1) % 2;
+            $row[] = $cnxs[$vhost->name][$m];
             $stdresultarr[] = array($vhost->name, ($year) ? $year : get_string('whenever', 'report_vmoodle'), $m, $cnxs[$vhost->name][$m]);
         }
-    }
-    if ($SESSION->vmoodle_stat_distinct_users) {
-        $sql = "
-            SELECT
-                COUNT(DISTINCT userid) as cnxs
-            FROM
-                `{$vhost->vdbname}`.{$vhost->vdbprefix}{$logtable}
-            WHERE
-                ACTION = 'login' AND
-                YEAR( FROM_UNIXTIME({$timefield})) = $year
-        ";
-        $totaldistinct = $DB->count_records_sql($sql);
-        $overalhostname[$vhost->name] = $totaldistinct;
-        $str .= '<tr class="row r'.$r.'">';
-        $str .= '<td width="80%" class="cell c0" style="line-height:20px">'.$shortyearlytotalstr.'</td>';
-        $str .= '<td width="20%" class="cell c1" style="font-weight:bolder;border:1px solid #808080">'.$totaldistinct.'</td>';
-        $str .= '</tr>';
-    } else {
-        $str .= '<tr class="row r'.$r.'">';
-        $str .= '<td width="80%" class="cell c0" style="line-height:20px">'.$shortyearlytotalstr.'</td>';
-        $str .= '<td width="20%" class="cell c1" style="font-weight:bolder;border:1px solid #808080">'.$yearly.'</td>';
-        $str .= '</tr>';
-    }
-    $str .= '</table></td>';
-
-    $col++;
-    if ($col >= 4) {
-        $str .= '</tr><tr>';
-        $col = 0;
+        $row[] = $yearly;
+        $table->data[] = $row;
     }
 }
 
-$str .= '</tr></table>';
+if (!empty($table->data)) {
+    $str .= html_writer::table($table);
+} else {
+    $str .= $OUTPUT->notification(get_string('nodata', 'report_vmoodle'));
+}
 
 $str .= $OUTPUT->heading(get_string('graphs', 'report_vmoodle'), 2);
 
@@ -192,7 +174,7 @@ $jqplot = report_vmoodle_prepare_graph_structure(get_string('events', 'report_vm
 $i = 0;
 foreach ($vhosts as $vhost) {
     $i++;
-    $str .= $OUTPUT->heading(report_vmoodle_get_full_name($vhost), 3);
+    $str .= $OUTPUT->heading($renderer->host_full_name($vhost), 3);
     if (!empty($cnxs[$vhost->name])) {
         $graphdata = array();
         foreach ($cnxs[$vhost->name] as $m => $value) {
@@ -201,7 +183,7 @@ foreach ($vhosts as $vhost) {
 
         $str .= local_vflibs_jqplot_print_graph('plotlog'.$i, $jqplot, $graphdata, 750, 250, 'margin:20px;', true);
     } else {
-        $str .= $OUTPUT->notification('no data');
+        $str .= $OUTPUT->notification(get_string('nodata', 'report_vmoodle'));
     }
 }
 
@@ -209,30 +191,25 @@ foreach ($vhosts as $vhost) {
 
 $str .= $OUTPUT->heading(get_string('totalcnxs', 'report_vmoodle'), 2);
 
-$overalmonthlystr = get_string('totalmonthly', 'report_vmoodle');
-$str .= '<table width="250" class="generaltable">';
-$str .= '<tr>';
-$str .= '<th colspan="2" class="header c0" style="line-height:20px;">'.$overalmonthlystr.'</th>';
-$str .= '</tr>';
+if (!empty($table->data)) {
+    $row = array();
+    $row[] = get_string('totalmonthly', 'report_vmoodle');
 
-$r = 0;
-for ($m = 1 ; $m <= 12 ; $m++) {
-    $om = 0 + @$overalmonthly[$m];
-    $str .= '<tr class="row r'.$r.'">';
-    $str .= '<td class="cell c0" style="border:1px solid #808080">'.$m.'</td>';
-    $str .= '<td class="cell c1" style="border:1px solid #808080">'.$om.'</td>';
-    $str .= '</tr>';
-    $r = ($r + 1) % 2;
+    $overall = 0;
+    for ($m = 1 ; $m <= 12 ; $m++) {
+        $om = 0 + @$overalmonthly[$m];
+        $overall += $om;
+        $row[] = $om;
+    }
+    $row[] = $overall; // Full total.
+    // Recycle the first table.
+    $table->head[0] = '';
+    $table->data = array($row);
+
+    $str .= html_writer::table($table);
+} else {
+    $str .= $OUTPUT->notification(get_string('nodata', 'report_vmoodle'));
 }
-if ($SESSION->vmoodle_stat_distinct_users) {
-    $overall = array_sum(array_values($overalhostname));
-}
-$str .= '<tr class="row r'.$r.'">';
-$str .= '<td class="cell c0" style="border:1px solid #808080">'.$yearlytotalstr.'</td>';
-$str .= '<td class="cell c1" style="border:1px solid #808080">'.$overall.'</td>';
-$str .= '</tr>';
-$str .= '</table>';
-$str .= '</td>';
 
 $str .= $OUTPUT->heading(get_string('graphs', 'report_vmoodle'), 2);
 
@@ -242,15 +219,4 @@ if (!empty($overalmonthly)) {
         $graphdata[0][] = array(sprintf('%02d', $m).'-01-'.$year, $value);
     }
     $str .= local_vflibs_jqplot_print_graph('plotlog'.$i, $jqplot, $graphdata, 750, 250, 'margin:20px;', true);
-}
-
-function report_vmoodle_get_full_name($vhost) {
-    global $DB;
-
-    $mnetname = '';
-    if ($mneth = $DB->get_record('mnet_host', array('wwwroot' => $vhost->vhostname))) {
-        return $vhost->name." ({$mneth->name})";
-    }
-
-    return $vhost->name;
 }

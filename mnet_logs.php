@@ -115,10 +115,11 @@ $str .= $OUTPUT->heading(get_string('logsize', 'report_vmoodle'));
 $table = new html_table();
 $table->head = array("<b>$hostnamestr</b>", "<b>$hosturlsstr</b>", "<b>$logsizestr</b>");
 $table->size = array('50%', '30%', '20%');
-$table->width = '90%';
+$table->width = '95%';
 
 foreach ($vhosts as $vhost) {
-    $table->data[] = array($vhost->name, $vhost->vhostname, $logtotals[$vhost->name]);
+    $vhostname = report_vmoodle_get_full_name($vhost);;
+    $table->data[] = array($vhostname, $vhost->vhostname, $logtotals[$vhost->name]);
 }
 
 $str .= html_writer::table($table);
