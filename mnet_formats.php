@@ -25,9 +25,7 @@ defined('MOODLE_INTERNAL') || die();
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-if (!defined('MOODLE_INTERNAL')) {
-    die('You cannot access this script directly');
-}
+require_once($CFG->dirroot.'/report/vmoodle/locallib.php');
 
 $year = optional_param('year', 0, PARAM_INT);
 
@@ -51,8 +49,6 @@ if (is_dir($CFG->dirroot.'/local/staticguitexts')) {
     $str .= local_print_static_text('static_vmoodle_report_formats', $CFG->wwwroot.'/admin/report/vmoodle/view.php', '', true);
 }
 
-$str .= "<table width=\"100%\"><tr>";
-
 $col = 0;
 $overall = 0 ;
 $totalstr = get_string('totalformats', 'report_vmoodle');
@@ -64,11 +60,26 @@ if (!empty($year)) {
     $yearclause = " AND YEAR( FROM_UNIXTIME(c.timecreated)) = $year ";
 }
 
-$stdresultarr = array();
+$hostnamestr = get_string('hostname', 'report_vmoodle');
+
+$table = new html_table();
+$table->head = array($hostnamestr); // To be completed later.
+$table->width = '95%'; // To be completed later.
+$table->align = array('left');
+$table->size = array('25%');
+$table2 = new html_table();
+$table2->head = array(''); // To be completed later.
+$table2->width = '95%'; // To be completed later.
+$table2->align = array('left');
+$table2->size = array('25%');
+
+$totformats = array();
+$tothostcourses = array();
 
 foreach ($vhosts as $vhost) {
-    $totformats = 0;
-    $str .= "<td valign=\"top\">";
+
+    $vhostname = $renderer->host_full_name($vhost);
+
     $sql = "
         SELECT
             c.format as format,
@@ -84,57 +95,78 @@ foreach ($vhosts as $vhost) {
             c.format
     ";
 
-    $str .= '<table width="100%" class="generaltable">';
-    $str .= '<tr><th colspan="2" class="header c0 report-vmoodle" >'.$vhost->name.'</th></tr>';
-
-    $r = 0;
     if ($formats = $DB->get_records_sql($sql)) {
         foreach ($formats as $c) {
-            $formatname = get_string('pluginname', 'format_'.$c->format);
-            if (strpos($formatname, '[[') !== false) {
-                $formatname = get_string('format'.$format);
-            }
-            if (strpos($formatname, '[[') !== false) {
-                $formatname = get_string($format);
+            if ($c->format != 'site') {
+                $formatname = get_string('pluginname', 'format_'.$c->format);
+                if (strpos($formatname, '[[') !== false) {
+                    $formatname = get_string('format'.$format);
+                }
+                if (strpos($formatname, '[[') !== false) {
+                    $formatname = get_string($format);
+                }
+            } else {
+                $formatname = get_string('site');
             }
 
-            $str .= '<tr class="row r'.$r.'"><td width="80%" class="cell c0 report-vmoodle">'.$formatname.'</td><td width="20%" class="cell c1 report-vmoodle">'.$c->formatcount.'</td></tr>';
-            $totformats = 0 + $c->formatcount + @$totformats;
-            $allnodes[$c->format] = 0 + $c->formatcount + @$allnodes[$c->format];
-            $r = ($r + 1) % 2;
-            $stdresultarr[] = array($vhost->name, ($year) ? $year : get_string('whenever', 'report_vmoodle'), $formatname, $c->formatcount);
+            $results[$vhostname][$formatname]  = $c->formatcount;
+            @$totformats[$formatname] += 0 + $c->formatcount;
+            @$tothosts[$vhostname] += 0 + $c->formatcount;
         }
-    }
-    $str .= "<tr class=\"row r$r\"><td width=\"80%\" class=\"cell c0\" style=\"line-height:20px\">$totalstr</td><td width=\"20%\" class=\"cell c1\" style=\"font-weight:bolder;border:1px solid #808080\">{$totformats}</td></tr>";
-    $str .= '</table></td>';
-
-    $col++;
-    if ($col >= 4) {
-        $str .= '</tr><tr>';
-        $col = 0;
     }
 }
 
-$str .= '</tr></table>';
+if (!empty($results)) {
+
+    $numformats = count(array_keys($totformats));
+    $widthinc = floor(75 / ($numformats + 1));
+    $formatnames = array_keys($totformats);
+    for ($i = 0 ; $i < $numformats ; $i++) {
+        $table->head[] = $formatnames[$i];
+        $table->align[] = 'center';
+        $table->size[] = $widthinc;
+        $table2->head[] = $formatnames[$i];
+        $table2->align[] = 'center';
+        $table2->size[] = $widthinc;
+    }
+    $table->head[] = get_string('totalformats', 'report_vmoodle');
+    $table->align[] = 'center';
+    $table->size[] = $widthinc;
+    $table2->head[] = get_string('totalformats', 'report_vmoodle');
+    $table2->align[] = 'center';
+    $table2->size[] = $widthinc;
+
+    foreach ($results as $vhostname => $formatarr) {
+        $sum = 0;
+        $row = array($vhostname);
+        foreach ($formatnames as $fname) {
+            $fcount = $renderer->format_number(0 + @$formatarr[$fname]);
+            $row[] = $fcount;
+            $sum += $fcount;
+        }
+        $row[] = $sum;
+        $table->data[] = $row;
+    }
+
+    $str .= html_writer::table($table);
+
+} else {
+    $str .= $OUTPUT->notification(get_string('nodata', 'report_vmoodle'));
+}
 
 $str .= $OUTPUT->heading(get_string('totalformatsuses', 'report_vmoodle'), 2);
 
-$str .= '<table width="250" class="generaltable">';
-$str .= "<tr><th colspan=\"2\" class=\"header c0\" style=\"line-height:20px;\">$allnodesstr</th></tr>";
+if (!empty($results)) {
+    $row = array(get_string('allnodes', 'report_vmoodle'));
+    $sum = 0;
+    foreach ($totformats as $formatname => $formatcount) {
+        $row[] = $renderer->format_number($formatcount);
+        $sum += $formatcount;
+    }
+    $row[] = $sum;
+    $table2->data = array($row);
 
-$r = 0;
-$nettotal = 0;
-foreach ($allnodes as $format => $formatcount) {
-    $formatname = get_string('pluginname', 'format_'.$format);
-    if (strpos($formatname, '[[') !== false) {
-        $formatname = get_string('format'.$format);
-    }
-    if (strpos($formatname, '[[') !== false) {
-        $formatname = get_string($format);
-    }
-    $str .= "<tr class=\"row r$r\"><td class=\"cell c0\" style=\"border:1px solid #808080\">$formatname</td><td class=\"cell c1\" style=\"border:1px solid #808080\">{$formatcount}</td></tr>";
-    $nettotal = 0 + $formatcount + @$nettotal;
-    $r = ($r + 1) % 2;
+    $str .= html_writer::table($table2);
+} else {
+    $str .= $OUTPUT->notification(get_string('nodata', 'report_vmoodle'));
 }
-$str .= "<tr class=\"row r$r\"><td class=\"cell c0\" style=\"border:1px solid #808080;font-weight:bolder\">$networktotalstr</td><td class=\"cell c1\" style=\"border:1px solid #808080;font-weight:bolder\">{$nettotal}</td></tr>";
-$str .= "</table></td>";

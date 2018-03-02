@@ -45,3 +45,34 @@
     background-color: #FF5422;
     padding: 5px;
 }
+
+.vmoodle-different {
+    background-color:#D2E1F7;
+}
+
+.vmoodle-tera {
+    background-color:#FF2828;
+}
+
+.vmoodle-giga {
+    background-color:#FEA429;
+}
+
+.vmoodle-mega {
+    background-color:#F0DE00;
+}
+
+.vmoodle-kilo {
+    background-color:#00A8F0;
+}
+
+.vmoodle-size-bar {
+    display:inline-block;
+    height:4px;
+    width:15px;
+}
+
+.null-value {
+    -moz-opacity:0.5;
+    opacity:0.5;
+}

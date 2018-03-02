@@ -44,14 +44,13 @@ $str .= '</form>';
 $str .= $OUTPUT->heading(get_string('modules', 'report_vmoodle'), 2);
 
 if (is_dir($CFG->dirroot.'/local/staticguitexts')) {
-    $str .= local_print_static_text('static_vmoodle_report_modules', $CFG->wwwroot.'/admin/report/vmoodle/view.php', '', true);
+    $returnurl = new moodle_url('/admin/report/vmoodle/view.php', array('view' => 'modules'))
+    $str .= local_print_static_text('static_vmoodle_report_modules', $returnurl, '', true);
 }
-
-$str .= "<table width=\"100%\"><tr>";
 
 $col = 0;
 $overall = 0 ;
-$totalstr = get_string('totalmodules', 'report_vmoodle');        
+$totalstr = get_string('totalmodules', 'report_vmoodle');
 $allnodesstr = get_string('allnodes', 'report_vmoodle');
 $networktotalstr = get_string('networktotal', 'report_vmoodle');
 
@@ -64,7 +63,6 @@ $stdresultarr = array();
 
 foreach ($vhosts as $vhost) {
     $totmodules = 0;
-    $str .= "<td valign=\"top\">";
     $sql = "
         SELECT 
             m.name as modname,
@@ -81,31 +79,23 @@ foreach ($vhosts as $vhost) {
             modname
     ";
 
-    $str .= "<table width=\"100%\" class=\"generaltable\">";
-    $str .= "<tr><th colspan=\"2\" class=\"header c0\" style=\"line-height:20px\" >$vhost->name</th></tr>";
-
-    $r = 0;
     if ($modules = $DB->get_records_sql($sql)) {
         foreach ($modules as $m) {
             $modname = get_string('modulenameplural', $m->modname);
-            $str .= "<tr class=\"row r$r\"><td width=\"80%\" class=\"cell c0\" style=\"border:1px solid #808080\">$modname</td><td width=\"20%\" class=\"cell c1\" style=\"border:1px solid #808080\">{$m->modcount}</td></tr>";
+            $icon = $OUTPUT->pix_icon('icon', $m->modname);
+            $str .= $modname $m->modcount;
             $totmodules = 0 + $m->modcount + @$totmodules;
             $allnodes[$m->modname] = 0 + $m->modcount + @$allnodes[$m->modname];
-            $r = ($r + 1) % 2;
             $stdresultarr[] = array($vhost->name, ($year) ? $year : get_string('whenever', 'report_vmoodle'), $modname, $m->modcount);
         }
     }
-    $str .= "<tr class=\"row r$r\"><td width=\"80%\" class=\"cell c0\" style=\"line-height:20px\">$totalstr</td><td width=\"20%\" class=\"cell c1\" style=\"font-weight:bolder;border:1px solid #808080\">{$totmodules}</td></tr>";
-    $str .= "</table></td>";
-    
-    $col++;
-    if ($col >= 4) {
-        $str .= '</tr><tr>';
-        $col = 0;
-    }
 }
 
-$str .= '</tr></table>';
+foreach ($modnames)
+
+if (!empty($results)) {
+    foreach ()
+}
 
 $str .= $OUTPUT->heading(get_string('totalmodulesuses', 'report_vmoodle'), 2);
 
