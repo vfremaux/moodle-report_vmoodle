@@ -32,7 +32,7 @@ function vmoodle_report_write_results_xls(&$worksheet, &$stdresultarr, $startrow
         return $rownum;
     }
 
-    foreach ($stdresultarr as $row) {
+    foreach ($stdresultarr as $index => $row) {
 
         $cellnum = 0;
         foreach ($row as $cell) {
@@ -63,7 +63,7 @@ function vmoodle_report_write_init_xls(&$workbook, $view, $latinexport = false) 
         $sheettitle = mb_convert_encoding($sheettitle, 'ISO-8859-1', 'UTF-8');
     }
 
-    $worksheet = & $workbook->add_worksheet($sheettitle);
+    $worksheet = $workbook->add_worksheet($sheettitle);
     $worksheet->set_column(0,0,30);
     $worksheet->set_column(1,1,30);
     $worksheet->set_column(2,2,30);
@@ -219,3 +219,4 @@ function report_vmoodle_prepare_graph_structure($title) {
         ),
     );
 }
+

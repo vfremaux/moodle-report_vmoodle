@@ -16,6 +16,11 @@
 
 defined('MOODLE_INTERNAL') || die();
 
+define ('VMOODLE_KILOBYTE', 1024);
+define ('VMOODLE_MEGABYTE', 1048576);
+define ('VMOODLE_GIGABYTE', 1073741824);
+define ('VMOODLE_TERABYTE', 1099511627776);
+
 class report_vmoodle_renderer extends plugin_renderer_base {
 
     public function graphbar($value, $valuemax, $width = 300) {
@@ -40,6 +45,7 @@ class report_vmoodle_renderer extends plugin_renderer_base {
                                'roles',
                                'users',
                                'logs',
+                               'files',
                                'modules',
                                'blocks',
                                'courses',
@@ -69,6 +75,8 @@ class report_vmoodle_renderer extends plugin_renderer_base {
             $taburl = new moodle_url('/report/vmoodle/view.php', array('view' => 'usersync'));
             $rows[0][] = new tabobject('usersync', $taburl, get_string('syncusers', 'local_ent_installer'));
         }
+        $taburl = new moodle_url('/report/vmoodle/view.php', array('view' => 'files'));
+        $rows[0][] = new tabobject('files', $taburl, get_string('files', 'report_vmoodle'));
         $taburl = new moodle_url('/report/vmoodle/view.php', array('view' => 'logs'));
         $rows[0][] = new tabobject('logs', $taburl, get_string('logs', 'report_vmoodle'));
         $taburl = new moodle_url('/report/vmoodle/view.php', array('view' => 'roles'));
@@ -109,7 +117,7 @@ class report_vmoodle_renderer extends plugin_renderer_base {
 
     public function xlsexport($view) {
 
-        $year = optional_param('year', 2010, PARAM_INT);
+        $year = optional_param('year', date('Y'), PARAM_INT);
 
         $formurl = new moodle_url('/report/vmoodle/view.php');
 
@@ -125,6 +133,103 @@ class report_vmoodle_renderer extends plugin_renderer_base {
         $jshandler = 'document.forms[\'asxlsform\'].latin.value = 1; document.forms[\'asxlsform\'].submit()';
         $str .= ' <input type="button" name="asxls" value="'.get_string('asxlslatin', 'report_vmoodle').'" onclick="'.$jshandler.'" /></p></center>';
         $str .= '</form>';
+
+        return $str;
+    }
+
+    public function format_size($size) {
+        if ($size < 100) {
+            return $size;
+        }
+        if ($size < VMOODLE_MEGABYTE) {
+            return sprintf('%0.1fk', $size / VMOODLE_KILOBYTE);
+        }
+        if ($size < VMOODLE_GIGABYTE) {
+            return sprintf('%0.2fM', $size / VMOODLE_MEGABYTE);
+        }
+        if ($size < VMOODLE_TERABYTE) {
+            return sprintf('%0.2fG', $size / VMOODLE_GIGABYTE);
+        }
+        return sprintf('%0.3fT', $size / VMOODLE_TERABYTE);
+    }
+
+    function size_bar($size) {
+        $str = '<br/>';
+
+        if ($size == 0) {
+            return '';
+        }
+
+        if ($size >= VMOODLE_KILOBYTE) {
+            $str .= '<div class="vmoodle-kilo vmoodle-size-bar"></div>';
+        }
+        if ($size >= VMOODLE_MEGABYTE) {
+            $str .= '<div class="vmoodle-mega vmoodle-size-bar"></div>';
+        }
+        if ($size >= VMOODLE_GIGABYTE) {
+            $str .= '<div class="vmoodle-giga vmoodle-size-bar"></div>';
+        }
+        if ($size >= VMOODLE_TERABYTE) {
+            $str .= '<div class="vmoodle-tera vmoodle-size-bar"></div>';
+        }
+
+        return $str;
+    }
+
+    public function host_full_name($vhost) {
+        global $DB;
+
+        $mnetname = '';
+        if ($mneth = $DB->get_record('mnet_host', array('wwwroot' => $vhost->vhostname))) {
+            return $vhost->name." ({$mneth->name})";
+        }
+
+        return $vhost->name;
+    }
+
+    public function format_number($value) {
+        if ($value == 0) {
+            return '<span class="null-value">'.$value.'</span>';
+        }
+        return $value;
+    }
+
+    public function filter_form($additionalinputs = '', $allyears = true) {
+
+        $currentyear = date('Y');
+        $year = optional_param('year', $currentyear, PARAM_INT);
+        $view = optional_param('view', 'cnxs', PARAM_TEXT);
+
+        $template = new StdClass;
+
+        $config = get_config('report_vmoodle');
+
+        $hasoptions;
+        if (!empty($config->backexploredepth)) {
+            $startyear = $currentyear - $config->backexploredepth;
+            for ($i = 0 ; $i <= $config->backexploredepth ; $i++) {
+                $years[$startyear + $i] = $startyear + $i;
+            }
+
+            $template->additionalinputs = $additionalinputs;
+            $template->view = $view;
+            if ($allyears) {
+                $years[9999] = get_string('allyears', 'report_vmoodle');
+            }
+            $template->yearselect = html_writer::select($years, 'year', $year, array());
+            $hasoptions = true;
+        }
+
+        if ($hasoptions || !empty($additionalinputs)) {
+            $template->gostr = get_string('apply', 'report_vmoodle');
+            return $this->output->render_from_template('report_vmoodle/filterform', $template);
+        }
+    }
+
+    public function graphcontrol_button() {
+        $str = '';
+
+        $str .= '<input type="button" class="btn" id="report-vmoodle-togglegraph-handle" value="'.get_string('hidegraphs', 'report_vmoodle').'"/>';
 
         return $str;
     }
