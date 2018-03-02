@@ -81,27 +81,7 @@ foreach ($pfconfig as $pf) {
 }
 
 $totalusersinhoststr = get_string('totalusersinhost', 'report_vmoodle');
-
-/*
- * Defines the max rows we can fetch at first page loading. All further rows will be delegated
- * to lazy loading with subsequent ajax queries.
- */
-$htmllimit = 0;
-$counter = 0;
-
-$table->xlsdata = null;
-$table->data = null;
-
 foreach ($vhosts as $vhost) {
-
-    if ($output == 'html' && $counter >= $htmllimit && ($vhost->vhostname != $CFG->wwwroot)) {
-        // If over the fetchable limit, just print a delegated container.
-        $delegated = new StdClass;
-        $delegated->fragment = 'users';
-        $delegated->contextstring = $vhost->vhostname;
-        $table->data[] = $delegated;
-        continue;
-    }
 
     $vhostname = $renderer->host_full_name($vhost);
 
@@ -184,6 +164,7 @@ foreach ($vhosts as $vhost) {
             $row[] = $renderer->format_number($us->suspendedusers);
             $allsuspendeds += $us->suspendedusers;
             $allunconnected += $us->localunconnected;
+
             for ($i = 0 ; $i < count($pfconfig) ; $i++) {
                 $key = 'pfdata'.($i + 1);
                 $unckey = 'pfdata'.($i + 1).'unc';
@@ -219,8 +200,6 @@ foreach ($vhosts as $vhost) {
             $table->xlsdata[] = $row;
 
         }
-
-        $counter++;
     }
 }
 
@@ -243,22 +222,19 @@ if (empty($table->data)) {
     if ($alllocals) {
         $totalratio = sprintf('%.1f', (1 - $allunconnected / $alllocals) * 100).'%';
     }
-
     $allconnected = $alllocals - $allunconnected;
-    $allusers = '<span id="sumator-locals">'.$alllocals.'</span> / <span id="sumator-localsunconnected">'.$allunconnected.'</span> (<span id="sumator-totalratio" >'.$totalratio.'</span>)';
-    /*
+    $allusers = $alllocals.' / '.$allunconnected.' ('.$totalratio.')';
     $data = array(array($cnxedstr, $allconnected), array($uncnxedstr, $allunconnected));
     $attrs = array('height' => '200', 'width' => 200);
     $allusers .= '<br/>'.local_vflibs_jqplot_simple_donut($data, 'total_'.$vhost->id.'_'.$i, 'report-vmoodle-user-charts', $attrs);
-    */
-    $totalrow = array($totalstr, $allusers, '--', '<span id="sumator-suspendeds">'.$allsuspendeds.'</span>');
+    $totalrow = array($totalstr, $allusers, '--', $allsuspendeds);
     for ($i = 0 ; $i < count($pfconfig) ; $i++) {
         $key = 'pfdata'.($i + 1);
         $totalrow[] = $$key;
     }
     $table->data[] = $totalrow;
 
-    $str .= $renderer->delegated_table($table);
+    $str .= html_writer::table($table);
 }
 
 // Prepare for Xls export :
