@@ -46,7 +46,6 @@ foreach($vhosts as $vhost) {
             `{$vhost->vdbname}`.{$vhost->vdbprefix}local_ent_installer lei
     ";
     $lastrun[$vhost->id] = $DB->get_field_sql($sql, array());
-
 }
 
 $table = new html_table();
