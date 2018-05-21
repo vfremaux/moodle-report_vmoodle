@@ -86,7 +86,7 @@ $totalusersinhoststr = get_string('totalusersinhost', 'report_vmoodle');
  * Defines the max rows we can fetch at first page loading. All further rows will be delegated
  * to lazy loading with subsequent ajax queries.
  */
-$htmllimit = 0;
+$htmllimit = 20;
 $counter = 0;
 
 $table->xlsdata = null;
