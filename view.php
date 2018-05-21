@@ -38,16 +38,23 @@ require_capability('report/vmoodle:view', $systemcontext);
 $view = optional_param('view', 'cnxs', PARAM_TEXT);
 $output = optional_param('output', 'html', PARAM_TEXT);
 
+if ($output == 'html') {
+    \core_php_time_limit::raise();
+}
+
 $url = new moodle_url('/report/vmoodle/view.php');
 $PAGE->set_url($url, array('view' => $view));
 $PAGE->set_context($systemcontext);
 $PAGE->set_pagelayout('admin');
 $PAGE->set_title(get_string('vmoodlereport', 'report_vmoodle'));
 $PAGE->set_heading(get_string('vmoodlereport', 'report_vmoodle'));
+$PAGE->requires->js_call_amd('report_vmoodle/graphcontrol', 'init');
+$PAGE->requires->js_call_amd('report_vmoodle/fragments', 'init');
 
 $renderer = $PAGE->get_renderer('report_vmoodle');
 
 $thishost = new StdClass;
+$thishost->id = 0;
 $thishost->name = $SITE->fullname;
 $thishost->vdbtype = $CFG->dbtype;
 $thishost->vdbname = $CFG->dbname;
@@ -67,7 +74,7 @@ if ($view == 'online') {
 }
 
 if ($view == 'cnxs') {
-    include($CFG->dirroot.'/report/vmoodle/mnet_general.php');
+    include($CFG->dirroot.'/report/vmoodle/mnet_cnxs.php');
 }
 
 if ($view == 'users') {
@@ -78,6 +85,10 @@ if (is_dir($CFG->dirroot.'/local/ent_installer')) {
     if ($view == 'usersync') {
         include($CFG->dirroot.'/report/vmoodle/mnet_usersync.php');
     }
+}
+
+if ($view == 'files') {
+    include($CFG->dirroot.'/report/vmoodle/mnet_files.php');
 }
 
 if ($view == 'logs') {
@@ -116,7 +127,7 @@ if ($view == 'resourcetypes') {
     include($CFG->dirroot.'/report/vmoodle/mnet_resourcetypes.php');
 }
 
-if ($sharedinstalled) {
+if (is_dir($CFG->dirroot.'/local/sharedresources')) {
     if ($view == 'sharedresources') {
         include($CFG->dirroot.'/report/vmoodle/mnet_sharedresources.php');
     }
@@ -162,10 +173,12 @@ if ($output == 'html') {
     $workbook->send($filename);
     $worksheet = vmoodle_report_write_init_xls($workbook, $view, $latin);
 
-    $headerarr[] = array(get_string('hostname', 'report_vmoodle'),
-                         get_string('year', 'report_vmoodle'),
-                         get_string('objecttype', 'report_vmoodle'),
-                         get_string('objectcount', 'report_vmoodle'));
+    if (!isset($headerarr)) {
+        $headerarr[] = array(get_string('hostname', 'report_vmoodle'),
+                             get_string('year', 'report_vmoodle'),
+                             get_string('objecttype', 'report_vmoodle'),
+                             get_string('objectcount', 'report_vmoodle'));
+    }
 
     vmoodle_report_write_results_xls($worksheet, $headerarr, 0, $latin);
     vmoodle_report_write_results_xls($worksheet, $stdresultarr, 1, $latin);

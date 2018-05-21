@@ -17,108 +17,251 @@
 /**
  * Version info
  *
- * @package    report
- * @subpackage vmoodle
+ * @package    report_vmoodle
+ * @category   report
  * @copyright  2012 Valery Fremaux
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+
+require_once($CFG->dirroot.'/local/vflibs/jqplotlib.php');
+local_vflibs_require_jqplot_libs();
 
 if (!defined('MOODLE_INTERNAL')) {
     die('You cannot access this script directly');
 }
 
+$config = get_config('report_vmoodle');
 $year = optional_param('year', 0, PARAM_INT);
+
+$firstaccessclause = '';
+if ($year && $year < 9000) {
+    $firstaccessclause = " AND YEAR(FROM_UNIXTIME(timecreated)) <= $year ";
+}
+
+$totallocalusers = 0;
+$localusers = array();
+
+$hostnamestr = get_string('hostname', 'report_vmoodle');
+$internalstr = get_string('locals', 'report_vmoodle');
+$externalstr = get_string('remotes', 'report_vmoodle');
+$deletedstr = get_string('deleted');
+$suspendedstr =  get_string('suspended');
+$unconnectedstr =  get_string('neverconnected', 'report_vmoodle');
+$cnxratiostr =  get_string('cnxratio', 'report_vmoodle');
+$totalstr = get_string('totalusers', 'report_vmoodle');
+$cnxedstr = get_string('cnxed', 'report_vmoodle');
+$uncnxedstr = get_string('uncnxed', 'report_vmoodle');
+
+$pfconfig = explode(',', $config->profilefields);
+$widthincr = floor(80 / (count($pfconfig) + 3));
+
+$table = new html_table();
+$uncextstr = ' / '.$unconnectedstr.'<br>'.$cnxratiostr;
+$table->head = array($hostnamestr, $internalstr.$uncextstr, $externalstr, $suspendedstr);
+$table->xlshead = array($hostnamestr, $internalstr, $unconnectedstr, $externalstr, $suspendedstr);
+$table->size = array('20%', $widthincr, $widthincr, $widthincr, $widthincr);
+$table->width = '95%';
+$table->align = array('left', 'center', 'center', 'center', 'center');
+
+$alllocals = 0;
+$allsuspendeds = 0;
+$allunconnected = 0;
+for ($i = 0 ; $i < count($pfconfig) ; $i++) {
+    $key = 'pfdata'.($i + 1);
+    $$key = 0;
+}
+
+foreach ($pfconfig as $pf) {
+    $fieldname = $DB->get_field('user_info_field', 'name', array('shortname' => trim($pf)));
+    $table->head[] = $fieldname.$uncextstr;
+    $table->xlshead[] = $fieldname;
+    $table->xlshead[] = $fieldname.' '.$unconnectedstr;
+    $table->size[] = $widthincr;
+    $table->align[] = 'center';
+}
+
+$totalusersinhoststr = get_string('totalusersinhost', 'report_vmoodle');
+
+/*
+ * Defines the max rows we can fetch at first page loading. All further rows will be delegated
+ * to lazy loading with subsequent ajax queries.
+ */
+$htmllimit = 0;
+$counter = 0;
+
+$table->xlsdata = null;
+$table->data = null;
+
+foreach ($vhosts as $vhost) {
+
+    if ($output == 'html' && $counter >= $htmllimit && ($vhost->vhostname != $CFG->wwwroot)) {
+        // If over the fetchable limit, just print a delegated container.
+        $delegated = new StdClass;
+        $delegated->fragment = 'users';
+        $delegated->contextstring = $vhost->vhostname;
+        $table->data[] = $delegated;
+        continue;
+    }
+
+    $vhostname = $renderer->host_full_name($vhost);
+
+    list($insql, $inparams) = $DB->get_in_or_equal($pfconfig);
+    // Prefetch profile info
+    $sql = "
+        SELECT
+            shortname, id
+        FROM
+            `{$vhost->vdbname}`.{$vhost->vdbprefix}user_info_field
+        WHERE
+            shortname $insql
+    ";
+    $fields = $DB->get_records_sql($sql, $inparams);
+
+    $sql = "
+        SELECT
+            value
+        FROM
+            `{$vhost->vdbname}`.{$vhost->vdbprefix}config
+        WHERE
+            name = 'mnet_localhost_id'
+    ";
+    $localusershost = $DB->get_field_sql($sql);
+
+    $profilefields = '';
+    $profilejoins = '';
+    $joinwheres = '';
+    if ($fields) {
+        $i = 1;
+        foreach ($fields as $field) {
+            $profilefields .= ', SUM(CASE WHEN pf'.$i.'.data IS NOT NULL AND pf'.$i.'.data > 0 THEN 1 ELSE 0 END) as pfdata'.$i."\n";
+            $profilefields .= ', SUM(CASE WHEN u.firstaccess = 0 AND
+                                               u.mnethostid = '.$localusershost.' AND
+                                               pf'.$i.'.data IS NOT NULL AND
+                                               pf'.$i.'.data > 0 THEN 1 ELSE 0 END) as pfdata'.$i.'unc';
+
+            $joinwheres = ' ON pf'.$i.'.userid = u.id AND pf'.$i.'.fieldid = '.$field->id;
+            $profilejoins .= " LEFT JOIN `{$vhost->vdbname}`.{$vhost->vdbprefix}user_info_data as pf".$i.$joinwheres;
+
+            $i++;
+        }
+    }
+
+    $sql = "
+        SELECT
+            SUM(CASE WHEN u.suspended = 0 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as localusers,
+            SUM(CASE WHEN u.suspended = 0 AND u.mnethostid != ".$localusershost." THEN 1 ELSE 0 END) as remoteusers,
+            SUM(CASE WHEN u.firstaccess = 0 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as localunconnected,
+            SUM(CASE WHEN u.suspended = 1 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as suspendedusers
+            $profilefields
+        FROM
+            `{$vhost->vdbname}`.{$vhost->vdbprefix}user as u
+            $profilejoins
+        WHERE
+            u.deleted = 0
+            $firstaccessclause
+    ";
+
+    $hoststats = $DB->get_records_sql($sql);
+
+    if ($hoststats) {
+        foreach ($hoststats as $us) {
+
+            $lus = $us->localusers;
+            $luu = $us->localunconnected;
+            $luc = $us->localusers - $us->localunconnected;
+            $ratio = sprintf('%.1f', $luc / $lus * 100).'%';
+
+            // HTML rendering.
+            $row = array();
+            $row[] = $renderer->host_full_name($vhost);
+            $alllocals += $us->localusers;
+            $localusers = $renderer->format_number($lus).' / '.$renderer->format_number($luu).' ('.$ratio.')';
+            $data = array(array($cnxedstr, (int)$luc), array($uncnxedstr, (int)$luu));
+            $attrs = array('height' => '150', 'width' => 150);
+            $localusers .= '<br/>'.local_vflibs_jqplot_simple_donut($data, 'users_'.$vhost->id, 'report-vmoodle-user-charts', $attrs);
+            $row[] = $localusers;
+            $row[] = $renderer->format_number($us->remoteusers);
+            $row[] = $renderer->format_number($us->suspendedusers);
+            $allsuspendeds += $us->suspendedusers;
+            $allunconnected += $us->localunconnected;
+            for ($i = 0 ; $i < count($pfconfig) ; $i++) {
+                $key = 'pfdata'.($i + 1);
+                $unckey = 'pfdata'.($i + 1).'unc';
+                $pfu = 0 + @$us->$key;
+                $pfunc = 0 + @$us->$unckey;
+                $ratio = 0;
+                if ($pfu) {
+                    $ratio = (1 - ($pfunc / $pfu)) * 100;
+                }
+                $value = $renderer->format_number($pfu).' / '.$renderer->format_number($pfunc).' ('.sprintf('%.1f', $ratio).'%)';
+                $data = array(array($cnxedstr, $pfu - $pfunc), array($uncnxedstr, $pfunc));
+                $attrs = array('height' => '150', 'width' => 150);
+                $value .= '<br/>'.local_vflibs_jqplot_simple_donut($data, 'field_'.$vhost->id.'_'.$i, 'report-vmoodle-user-charts', $attrs);
+                $row[] = $value;
+                $$key += @$us->$key;
+            }
+            $table->data[] = $row;
+
+            // XLS rendering.
+            $row = array();
+            $row[] = $renderer->host_full_name($vhost);
+            $row[] = $lus;
+            $row[] = $luu;
+            $row[] = $us->remoteusers;
+            $row[] = $us->suspendedusers;
+
+            for ($i = 0 ; $i < count($pfconfig) ; $i++) {
+                $key = 'pfdata'.($i + 1);
+                $unckey = 'pfdata'.($i + 1).'unc';
+                $row[] = @$us->$key;
+                $row[] = @$us->$unckey;
+            }
+            $table->xlsdata[] = $row;
+
+        }
+
+        $counter++;
+    }
+}
 
 $str = '';
 
 $str .= $OUTPUT->heading(get_string('users', 'report_vmoodle'), 2);
 
 if (is_dir($CFG->dirroot.'/local/staticguitexts')) {
-    $str .= local_print_static_text('static_vmoodle_report_users', $CFG->wwwroot.'/admin/report/vmoodle/view.php?view=users', '', true);
+    $returnurl = new moodle_url('/admin/report/vmoodle/view.php', array('view' => 'users'));
+    $str .= local_print_static_text('static_vmoodle_report_users', $returnurl, '', true);
 }
 
-$str .= '<form name="chooseyearform">';
-$str .= '<input type="hidden" name="view" value="'.$view.'" />';
-$years[0] = 'Sans filtrage';
+$str .= $renderer->filter_form($renderer->graphcontrol_button());
 
-for ($i = 0 ; $i < 15 ; $i++) {
-    $years[2009 + $i] = 2009 + $i;
-}
+if (empty($table->data)) {
+    $str = $OUTPUT->notification(get_string('nodata', 'report_vmoodle'));
+} else {
 
-$str .= html_writer::select($years, 'year', $year, array());
-$gostr = get_string('apply', 'report_vmoodle');
-$str .= '<input type="submit" value="'.$gostr.'" />';
-$str .= '</form>';
-
-$str .= '<table width="100%"><tr>';
-
-$firstaccessclause = '';
-if ($year) {
-    $firstaccessclause = " AND YEAR(FROM_UNIXTIME(firstaccess)) <= $year ";
-}
-
-$totallocalusers = 0;
-$localusers = array();
-
-$col = 0;
-$totalusersinhoststr = get_string('totalusersinhost', 'report_vmoodle');
-foreach($vhosts as $vhost) {
-
-    $str .= "<td valign=\"top\">";
-
-    $sql = "
-        SELECT
-            h.name as host,
-            h.wwwroot as vhost,
-            COUNT(*) as users
-        FROM
-            `{$vhost->vdbname}`.{$vhost->vdbprefix}user as u,
-            `{$vhost->vdbname}`.{$vhost->vdbprefix}mnet_host as h
-        WHERE 
-            u.mnethostid = h.id AND
-            u.deleted = 0
-            $firstaccessclause
-        GROUP BY
-            u.mnethostid
-        ORDER BY
-            h.name
-    ";
-
-    $str .= "<table width=\"100%\" class=\"generaltable\"><tr>";
-    $str .= "<th colspan=\"2\" class=\"header c0\"  style=\"line-height:20px;\" >$vhost->name</th></tr>";
-
-    $localusertotal = 0;
-    if ($users = $DB->get_records_sql($sql)) {
-        $r = 0;
-        foreach ($users as $user) {
-            if ($user->vhost == $vhost->vhostname) {
-                $localusers[$vhost->name] = $user->users;
-                $totallocalusers += $user->users;
-            }
-            $usercount = 0 + $user->users;
-            $localusertotal = 0 + @$localusertotal + $user->users;
-            $str .= "<tr class=\"row r$r\"><td width=\"80%\" class=\"cell c0\" style=\"border:1px solid #808080\">$user->host</td><td width=\"20%\" class=\"cell c1\" style=\"border:1px solid #808080\">{$usercount}</td></tr>";
-            $r = ($r + 1) % 2;
-        }
+    $totalratio = 0;
+    if ($alllocals) {
+        $totalratio = sprintf('%.1f', (1 - $allunconnected / $alllocals) * 100).'%';
     }
 
-    $str .= "<tr class=\"row r$r\"><td width=\"80%\" class=\"cell c0\" style=\"font-weight:bolder;border:1px solid #808080\">$totalusersinhoststr</td><td width=\"20%\" class=\"cell c1\" style=\"font-weight:bolder;border:1px solid #808080\">{$localusertotal}</td></tr>";
-    $str .= "</table></td>";
-
-    $col++;
-    if ($col >= 4) {
-        $str .= '</tr><tr>';
-        $col = 0;
+    $allconnected = $alllocals - $allunconnected;
+    $allusers = '<span id="sumator-locals">'.$alllocals.'</span> / <span id="sumator-localsunconnected">'.$allunconnected.'</span> (<span id="sumator-totalratio" >'.$totalratio.'</span>)';
+    /*
+    $data = array(array($cnxedstr, $allconnected), array($uncnxedstr, $allunconnected));
+    $attrs = array('height' => '200', 'width' => 200);
+    $allusers .= '<br/>'.local_vflibs_jqplot_simple_donut($data, 'total_'.$vhost->id.'_'.$i, 'report-vmoodle-user-charts', $attrs);
+    */
+    $totalrow = array($totalstr, $allusers, '--', '<span id="sumator-suspendeds">'.$allsuspendeds.'</span>');
+    for ($i = 0 ; $i < count($pfconfig) ; $i++) {
+        $key = 'pfdata'.($i + 1);
+        $totalrow[] = $$key;
     }
+    $table->data[] = $totalrow;
+
+    $str .= $renderer->delegated_table($table);
 }
 
-$str .= '</tr></table>';
+// Prepare for Xls export :
 
-if (!empty($localusers)) {
-    $str .= '<br/><center><table width="50%" class=\"generaltable\">';
-    foreach ($localusers as $hostname => $localcount) {
-        $str .= '<tr class="row"><td class="cell">'.$hostname.'</td><td class="cell">'.$localcount.'</td></tr>';
-    }
-    $str .= '<tr class="row"><td class="cell"><b>TOTAL</b></td><td class="cell">'.$totallocalusers.'</td></tr>';
-    $str .= '</table></center>';
-}
+$headerarr = array($table->xlshead);
+$stdresultarr = $table->xlsdata;

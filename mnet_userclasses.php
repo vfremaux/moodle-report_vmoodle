@@ -25,6 +25,7 @@ defined('MOODLE_INTERNAL') || die();
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+$config = get_config('report_vmoodle');
 $year = optional_param('year', 0, PARAM_INT); 
 $context = optional_param('context', CONTEXT_COURSE, PARAM_INT); 
 
@@ -49,22 +50,45 @@ $gostr = get_string('apply', 'report_vmoodle');
 $str .= '<input type="submit" value="'.$gostr.'" />';
 $str .= '</form>';
 
-$str .= '<table width="100%" cellspacing="10"><tr>';
-
 $timeassignclause = '';
 if ($year) {
     $timeassignclause = " AND YEAR(FROM_UNIXTIME(u.firstaccess)) <= $year ";
 }
 
+$pfconfig = explode(',', $config->profilefields);
+list($insql, $inparams) = $DB->get_in_or_equal($pfconfig);
+$widthincr = floor(80 / (count($pfconfig) + 3));
+$hostnamestr = get_string('hostname', 'report_vmoodle');
+$totalstr = get_string('totalusers', 'report_vmoodle');
+
+$table = new html_table();
+$table->head = array($hostnamestr);
+$table->size = array('20%');
+$table->align = array('left');
+
+foreach ($pfconfig as $pf) {
+    $fieldname = $DB->get_field('user_info_field', 'name', array('shortname' => trim($pf)));
+    $table->head[] = $fieldname;
+    $table->xlshead[] = $fieldname;
+    $table->size[] = $widthincr;
+    $table->align[] = 'center';
+
+    $totals[$pf] = 0;
+}
+
+$table->head[] = $totalstr;
+$table->xlshead[] = $totalstr;
+$table->size[] = $widthincr;
+$table->align[] = 'center';
+
 $userclasscount = array();
 
 $col = 0;
+$hostresults = array();
 foreach ($vhosts as $vhost) {
 
     $vdbprefix = $vhost->vdbprefix;
     $vdbname = $vhost->vdbname;
-
-    $str .= '<td valign="top" align="center">';
 
     $localmnethostidsql = "
         SELECT
@@ -79,7 +103,8 @@ foreach ($vhosts as $vhost) {
     // limit count to real local users.
     $sql = "
         SELECT
-            uif.name as userclass,
+            uif.shortname as userclass,
+            uif.name as userclassname,
             COUNT(DISTINCT(u.id)) as users
         FROM 
             `{$vdbname}`.{$vdbprefix}user as u,
@@ -91,7 +116,7 @@ foreach ($vhosts as $vhost) {
             u.mnethostid = {$remote_local_mnethostid} AND
             uid.data = 1 AND
             u.deleted = 0 AND
-            uif.shortname IN ('parent', 'enseignant', 'eleve', 'administration', 'cdt')
+            uif.shortname $insql
             $timeassignclause
         GROUP BY
             uif.shortname
@@ -99,36 +124,57 @@ foreach ($vhosts as $vhost) {
             uif.sortorder
     ";
 
-    $str .= '<table width="100%" class="generaltable"><tr>';
-    $str .= '<th colspan="2" class="header c0 report-vmoodle"><b>'.$vhost->name.'</b></th></tr>';
-
-    if ($users = $DB->get_records_sql($sql)) {
-        $r = 0;
-        foreach ($users as $user) {
+    if ($usercounts = $DB->get_records_sql($sql, $inparams)) {
+        foreach ($usercounts as $user) {
             $usercount = 0 + $user->users;
-            $userclasscount[$user->userclass] = @$userclasscount[$user->userclass] + $user->users; 
-            $str .= '<tr class="row r'.$r.'"><td width="80%" class="cell c0 report-moodle">'.$user->userclass.'</td><td width="20%" class="cell c1 report-vmoodle">'.$usercount.'</td></tr>';
-            $r = ($r + 1) % 2;
+            $userclasscount[$user->userclass] = @$userclasscount[$user->userclass] + $user->users;
+            $hostresults[$vhost->vhostname][$user->userclass] = $renderer->format_number($usercount);
         }
-    } else {
-        $str .= '<tr><td>'.get_string('nodata', 'report_vmoodle').'</td></tr>';
-    }
-
-    $str .= '</td></tr></table></td>';
-
-    $col++;
-    if ($col >= 4) {
-        $str .= '</tr><tr>';
-        $col = 0;
     }
 }
 
-$str .= '</tr></table>';
+if (!empty($hostresults)) {
+    foreach ($hostresults as $vhostname => $results) {
 
-if (!empty($userclasscount)) {
-    $str .= '<br/><center><table width="50%" class="generaltable">';
-    foreach ($userclasscount as $userclass => $usercount) {
-        $str .= '<tr class="row"><td class="cell" class="report-vmoodle">'.$userclass.'</td><td class="cell">'.$usercount.'</td></tr>';
+        // Print for HTML.
+        $row = array();
+        $totalrow = 0;
+        $row[] = $renderer->host_full_name($vhostname);
+        foreach ($pfconfig as $pf) {
+            $row[] = $renderer->format_number(0 + @$results[$pf]);
+            $totals[$pf] += 0 + @$results[$pf];
+            $totalrow += 0 + @$results[$pf];
+        }
+        $row[] = $totalrow;
+        $table->data[] = $row;
+
+        // Print for XLS.
+        $row = array();
+        $row[] = $renderer->host_full_name($vhost);
+        $totalrow = 0;
+        foreach ($pfconfig as $pf) {
+            $row[] = $results[$pf];
+            $totalrow += $results[$pf];
+        }
+        $row[] = $totalrow;
+        $table->xlsdata[] = $row;
     }
-    $str .= '</table></center>';
+
+    $row = array();
+    $row[] = $totalstr;
+    $totalrow = 0;
+    foreach ($pfconfig as $pf) {
+        $row[] = '<b>'.$renderer->format_number($totals[$pf]).'</b>';
+        $totalrow += $totals[$pf];
+    }
+    $row[] = '<b>'.$totalrow.'</b>';
+    $table->data[] = $row;
+
+    $str .= html_writer::table($table);
+
+} else {
+    $str .= $OUTPUT->notification(get_string('nodata', 'report_vmoodle'));
 }
+
+$headerarr = array($table->xlshead);
+$stdresultarr = $table->xlsdata;
