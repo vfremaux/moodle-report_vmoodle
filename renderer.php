@@ -176,11 +176,27 @@ class report_vmoodle_renderer extends plugin_renderer_base {
         return $str;
     }
 
-    public function host_full_name($vhost) {
-        global $DB;
+    public function host_full_name($vhostorname) {
+        global $DB, $CFG, $SITE;
+
+        if (empty($vhostorname)) {
+            throw new coding_exception('Null host or hostname');
+        }
+
+        if (is_string($vhostorname)) {
+            if ($vhostorname == $CFG->wwwroot) {
+                return $SITE->fullname;
+            }
+
+            $vhostname = $vhostorname;
+            $vhost = $DB->get_record('local_vmoodle', array('vhostname' => $vhostname));
+        } else {
+            $vhostname = $vhostorname->vhostname;
+            $vhost = $vhostorname;
+        }
 
         $mnetname = '';
-        if ($mneth = $DB->get_record('mnet_host', array('wwwroot' => $vhost->vhostname))) {
+        if ($mneth = $DB->get_record('mnet_host', array('wwwroot' => $vhostname))) {
             return $vhost->name." ({$mneth->name})";
         }
 
@@ -230,6 +246,102 @@ class report_vmoodle_renderer extends plugin_renderer_base {
         $str = '';
 
         $str .= '<input type="button" class="btn" id="report-vmoodle-togglegraph-handle" value="'.get_string('hidegraphs', 'report_vmoodle').'"/>';
+
+        return $str;
+    }
+
+    /**
+     * Given an html table standard structure, renderers specially the table with delegated row containers.
+     * It amits that the data[] value array contain empty arrays for which a row empty container will
+     * be printed.
+     * We expect the data being a table of objects giving ajax delegation information. We may allow
+     * some rows being real data array, in which case they will be printed the same way than the standard
+     * table.
+     */
+    public function delegated_table(html_table $table) {
+
+        if (empty($table->head)) {
+            throw new coding_exception('Empty head in vmoodle report table');
+        }
+
+        if (empty($table->align)) {
+            throw new coding_exception('Empty aligns in vmoodle report table');
+        }
+
+        if (empty($table->size)) {
+            throw new coding_exception('Empty sizes in vmoodle report table');
+        }
+
+        if (empty($table->width)) {
+            $table->width = '100%';
+        }
+
+        $str = '';
+        $str = '<table width="'.$table->width.'" class="generaltable">';
+        $str .= '<tr>';
+        $maxcol = count($table->head);
+        for ($i = 0 ; $i < $maxcol; $i++) {
+            $hd = $table->head[$i];
+            $class = '^header';
+            if ($i == 0) {
+                $class .= ' firstcol';
+            }
+            if ($i == $maxcol - 1) {
+                $class .= ' lastcol';
+            }
+            $class .= ' c'.$i;
+
+            if (!empty($table->colclasses[$i])) {
+                $class .= ' '.$table->colclasses[$i];
+            }
+
+            $class = ' '.core_text::strtolower($table->align[$i]).'align';
+
+            $str .= '<th class="'.$class.'" scope="col">'.$hd.'</th>';
+        }
+        $str .= '</tr>';
+
+        $maxrows = count($table->data);
+        for ($i = 0; $i < $maxrows; $i++) {
+
+            if ($i == 0) {
+                $class .= ' firstrow';
+            }
+            if ($i == $maxrows - 1) {
+                $class .= ' lastrow';
+            }
+
+            if (!empty($table->rowclasses[$i])) {
+                $class .= ' '.$table->rowclasses[$i];
+            }
+
+            if (!empty($table->rowclasses[$i])) {
+                $class .= ' '.$table->rowclasses[$i];
+            }
+
+            if (is_object($table->data[$i])) {
+                $rowcontent = '';
+                $delegationattrs = ' delegated-fragment="'.$table->data[$i]->fragment.'"';
+                $delegationattrs .= ' delegated-context="'.urlencode($table->data[$i]->contextstring).'"';
+                $str .= '<tr class="delegated-content '.$class.'" '.$delegationattrs.'" ></tr>';
+            } else {
+                $str .= '<tr class="'.$class.'" >';
+                for ($j = 0; $j < $maxcol; $j++) {
+                    $align = 'leftalign';
+                    if (!empty($table->align[$j])) {
+                        $align = $table->align[$j];
+                    }
+                    if (!empty($table->data[$i][$j])) {
+                        $str .= '<td class="cell '.$align.' c'.$j.'">'.$table->data[$i][$j].'</td>';
+                    } else {
+                        $str .= '<td class="cell '.$align.' c'.$j.'"></td>';
+                    }
+                }
+                $str .= '</tr>';
+            }
+
+        }
+        $str .= '<table>';
 
         return $str;
     }

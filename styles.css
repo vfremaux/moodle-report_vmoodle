@@ -76,3 +76,7 @@
     -moz-opacity:0.5;
     opacity:0.5;
 }
+
+.path-report-vmoodle .jqplot-data-label {
+    color: #000;
+}

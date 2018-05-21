@@ -38,6 +38,10 @@ require_capability('report/vmoodle:view', $systemcontext);
 $view = optional_param('view', 'cnxs', PARAM_TEXT);
 $output = optional_param('output', 'html', PARAM_TEXT);
 
+if ($output == 'html') {
+    \core_php_time_limit::raise();
+}
+
 $url = new moodle_url('/report/vmoodle/view.php');
 $PAGE->set_url($url, array('view' => $view));
 $PAGE->set_context($systemcontext);
@@ -45,6 +49,7 @@ $PAGE->set_pagelayout('admin');
 $PAGE->set_title(get_string('vmoodlereport', 'report_vmoodle'));
 $PAGE->set_heading(get_string('vmoodlereport', 'report_vmoodle'));
 $PAGE->requires->js_call_amd('report_vmoodle/graphcontrol', 'init');
+$PAGE->requires->js_call_amd('report_vmoodle/fragments', 'init');
 
 $renderer = $PAGE->get_renderer('report_vmoodle');
 

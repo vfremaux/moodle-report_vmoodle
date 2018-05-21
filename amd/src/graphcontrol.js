@@ -15,8 +15,8 @@
 
 /**
  *
- * @module     local_sharedresource/library
- * @package    local
+ * @module     report_vmoodle
+ * @package    report
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 // jshint unused: true, undef:true
@@ -29,7 +29,7 @@ define(['jquery', 'core/str', 'core/config', 'core/log'], function ($, str, cfg,
         init: function() {
             $('#report-vmoodle-togglegraph-handle').bind('click', this.toggle_graphs);
 
-            stringsreq = [
+            var stringsreq = [
                 {
                     key: 'hidegraphs',
                     component: 'report_vmoodle'
@@ -47,7 +47,7 @@ define(['jquery', 'core/str', 'core/config', 'core/log'], function ($, str, cfg,
             log.debug('ADM Vmoodle Report Graphcontrol initialized');
         },
 
-        toggle_graphs() {
+        toggle_graphs: function() {
 
             if (state) {
                 state = false;

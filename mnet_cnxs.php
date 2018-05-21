@@ -45,6 +45,7 @@ $additions .= get_string('individualconnections', 'report_vmoodle');
 $additions .= " - <input type=\"checkbox\" name=\"allhits\" value=\"1\" $allhitschecked $allhitsdisabled />";
 $additions .= get_string('allhits', 'report_vmoodle');
 
+$str = '';
 $str .= $renderer->filter_form($additions, false);
 
 $str .= $OUTPUT->heading(get_string('cnxs', 'report_vmoodle'), 2);
