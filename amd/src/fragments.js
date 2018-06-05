@@ -26,7 +26,7 @@ define(['jquery', 'core/config', 'core/log'], function ($, cfg, log) {
         init: function() {
 
             // Attach to each expected fragment slot an asynchronous loading.
-            $('.delegated-content').each(function (index) {
+            $('.delegated-content').each(function() {
                 $(this).promise().done(reportfragment.fragmentloader(this));
             });
 
@@ -38,9 +38,10 @@ define(['jquery', 'core/config', 'core/log'], function ($, cfg, log) {
          * of this function gets the content of one content slot.
          */
         fragmentloader: function(elm) {
-            that = $(elm);
+            var that = $(elm);
 
-            url = cfg.wwwroot + '/report/vmoodle/ajax/service.php';
+            var url = cfg.wwwroot + '/report/vmoodle/ajax/service.php';
+
             url += '?what=getfragment';
             url += '&fragment=' + that.attr('delegated-fragment');
             url += '&wwwroot=' + that.attr('delegated-context');
@@ -50,9 +51,11 @@ define(['jquery', 'core/config', 'core/log'], function ($, cfg, log) {
                 $('tr[delegated-context="' + data.source + '"]').html(data.html);
 
                 // find sumators and add results in it.
-                for (field in data.data) {
-                    newval = parseInt($('#sumator-' + field).html());
-                    $('#sumator-' + field).html(newval + data.data['field']);
+
+                for (var field in data.data) {
+                    var newval = parseInt($('#sumator-' + field).html());
+                    $('#sumator-' + field).html(newval + data.data.field);
+
                 }
             }, 'json');
         }

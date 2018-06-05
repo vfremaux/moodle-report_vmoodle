@@ -29,7 +29,8 @@ define(['jquery', 'core/str', 'core/config', 'core/log'], function ($, str, cfg,
         init: function() {
             $('#report-vmoodle-togglegraph-handle').bind('click', this.toggle_graphs);
 
-            stringsreq = [
+            var stringsreq = [
+
                 {
                     key: 'hidegraphs',
                     component: 'report_vmoodle'
