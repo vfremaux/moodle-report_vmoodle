@@ -16,6 +16,9 @@
 
 $string['vmoodle:view'] = 'Can see VMoodle reports ';
 
+// Privacy.
+$string['privacy:metadata'] = "The VMoodle report does not store any data belonging to users";
+
 $string['addeddate'] = 'Creation date: ';
 $string['allhits'] = 'All queries';
 $string['allnodes'] = 'All nodes';
