@@ -41,7 +41,6 @@ define(['jquery', 'core/config', 'core/log'], function ($, cfg, log) {
             var that = $(elm);
 
             var url = cfg.wwwroot + '/report/vmoodle/ajax/service.php';
-
             url += '?what=getfragment';
             url += '&fragment=' + that.attr('delegated-fragment');
             url += '&wwwroot=' + that.attr('delegated-context');
@@ -51,11 +50,9 @@ define(['jquery', 'core/config', 'core/log'], function ($, cfg, log) {
                 $('tr[delegated-context="' + data.source + '"]').html(data.html);
 
                 // find sumators and add results in it.
-
                 for (var field in data.data) {
                     var newval = parseInt($('#sumator-' + field).html());
                     $('#sumator-' + field).html(newval + data.data.field);
-
                 }
             }, 'json');
         }
