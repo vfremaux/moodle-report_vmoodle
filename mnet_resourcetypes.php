@@ -29,101 +29,140 @@ require_once($CFG->dirroot.'/mod/resource/lib.php');
 
 $year = optional_param('year', 0, PARAM_INT); 
 
-$str = '';    
-$str .= "<form name=\"chooseyearform\">";
-$years[] = get_string('whenever', 'report_vmoodle');
-for ($i = 0 ; $i < 15 ; $i++) {
-    $years[2009 + $i] = 2009 + $i;
-}
-
-$str .= get_string('addeddate', 'report_vmoodle');        
-$str .= html_writer::select($years, 'year', $year, array());
-$gostr = get_string('apply', 'report_vmoodle');
-$str .= " <input type=\"hidden\" name=\"view\" value=\"resourcetypes\" />";
-$str .= " <input type=\"submit\" value=\"$gostr\" />";
-$str .= '</form>';
-
-$str .= $OUTPUT->heading(get_string('resourcetypes', 'report_vmoodle'), 2);
-
-if (is_dir($CFG->dirroot.'/local/staticguitexts')) {
-    $str .= local_print_static_text('static_vmoodle_report_resourcetypes', $CFG->wwwroot.'/admin/report/vmoodle/view.php', '', true);
-}
-
-$str .= "<table width=\"100%\"><tr>";
-
 $col = 0;
 $overall = 0 ;
-$totalstr = get_string('totalresourcetypes', 'report_vmoodle');        
 $allnodesstr = get_string('allnodes', 'report_vmoodle');
-$networktotalstr = get_string('networktotal', 'report_vmoodle');
 
 $yearclause = '';
 if (!empty($year)) {
-    $yearclause = " AND YEAR( FROM_UNIXTIME(cm.added)) = $year ";
+    $yearclause = " AND YEAR( FROM_UNIXTIME(cm.added)) <= $year ";
 }
 
-$allnodes = array();
-$stdresultarr = array();
+$table = new html_table();
+$table->head = array($hostnamestr);
+$table->size = array('25%');
+$table->align = array('left');
+$table->width = '95%';
 
-foreach($vhosts as $vhost) {
-    $totresourcetypes = 0;
-    $str .= "<td valign=\"top\">";
+$maxscale = 0;
+$totresourcetypes = 0;
+
+foreach ($vhosts as $vhost) {
+
     $sql = "
-        SELECT 
+        SELECT
             m.name as typename,
-            COUNT(*) as rtcount
-        FROM 
-            `{$vhost->vdbname}`.{$vhost->vdbprefix}course_modules cm,
+            m.visible as visible,
+            COUNT(cm.id) as rtcount
+        FROM
             `{$vhost->vdbname}`.{$vhost->vdbprefix}modules m
-        WHERE 
-            cm.module = m.id AND
-            m.name IN ('resource', 'url', 'foler', 'sharedresource')
+        LEFT JOIN
+            `{$vhost->vdbname}`.{$vhost->vdbprefix}course_modules cm
+        ON
+            cm.module = m.id
+        WHERE
+            m.name IN ('resource', 'url', 'folder', 'sharedresource')
             $yearclause
-        GROUP 
-            BY typename
+        GROUP BY
+            typename
         ORDER BY
             typename
     ";
 
-    $str .= "<table width=\"100%\" class=\"generaltable\">";
-    $str .= "<tr><th colspan=\"2\" class=\"header c0\" style=\"line-height:20px\" >$vhost->name</th></tr>";
-
-    $r = 0;
-    if ($resourcetypes = $DB->get_records_sql($sql)) {
-        foreach ($resourcetypes as $rt) {
-            $typename = get_string('pluginname', $rt->typename);
-            $str .= "<tr class=\"row r$r\"><td width=\"80%\" class=\"cell c0\" style=\"border:1px solid #808080\">$typename</td><td width=\"20%\" class=\"cell c1\" style=\"border:1px solid #808080\">{$rt->rtcount}</td></tr>";
-            $totresourcetypes = 0 + $rt->rtcount + @$totresourcetypes;
-            $allnodes[$rt->typename] = 0 + $rt->rtcount + @$allnodes[$rt->typename];
-            $r = ($r + 1) % 2;
-            $stdresultarr[] = array($vhost->name, ($year) ? $year : get_string('whenever', 'report_vmoodle'), $typename, $rt->rtcount);
+    if ($restypes = $DB->get_records_sql($sql)) {
+        foreach ($restypes as $r) {
+            if (!in_array($r->modname, $restypenames)) {
+                $restypenames[] = $r->typename;
+                $resourcetypes[$r->typename] = $r;
+            }
+            $allnodes[$r->typename] = 0 + $r->rtcount + @$allnodes[$r->typename];
+            $hostresourcetypes[$vhost->vhostname][$r->typename] = $r->rtcount;
+            if ($r->rtcount > $maxscale) {
+                $maxscale = $r->rtcount;
+            }
         }
     }
-    $str .= "<tr class=\"row r$r\"><td width=\"80%\" class=\"cell c0\" style=\"line-height:20px\">$totalstr</td><td width=\"20%\" class=\"cell c1\" style=\"font-weight:bolder;border:1px solid #808080\">{$totresourcetypes}</td></tr>";
-    $str .= '</table></td>';
-    
-    $col++;
-    if ($col >= 4){
-        $str .= '</tr><tr>';
-        $col = 0;
+}
+
+foreach ($restypenames as $rt) {
+    if (!is_dir($CFG->dirroot.'/mod/'.$rt)) {
+        // Care about uninstalled modules.
+        continue;
+    }
+    $fullmodnames[$rt] = get_string('modulenameplural', $rt);
+    $modicons[$rt] = $OUTPUT->pix_icon('icon', $fullmodnames[$rt], $rt, array('width' => '32px', 'height' => '32px'));
+}
+
+asort($fullmodnames);
+
+foreach ($fullmodnames as $rt => $fullmodname) {
+    $table->head[] = $modicons[$rt];
+    $table->align[] = 'center';
+    $table->size[] = '5%';
+}
+
+$headers = array('host');
+$firstline = true;
+
+foreach ($vhosts as $vhost) {
+
+    $stdresult = array($vhost->vhostname);
+
+    $row = array();
+    $row[] = $renderer->host_full_name($vhost);
+
+    if (!empty($fullmodnames)) {
+        foreach ($fullmodnames as $rt => $fullmodname) {
+            if ($firstline) {
+                $headers[] = $rt;
+            }
+
+            // Data in row.
+            $count = $hostresourcetypes[$vhost->vhostname][$rt];
+            $graphratio = 0;
+            if ($count) {
+                $graphratio = round(log($count) * 10) + 1;
+            }
+            $html = $renderer->format_number($count);
+            $html .= '<br/>';
+            if ($resourcetypes[$rt]->visible) {
+                $html .= $OUTPUT->pix_icon('bluecircle', $fullmodname, 'report_vmoodle', array('width' => $graphratio, 'height' => $graphratio));
+            } else {
+                $html .= $OUTPUT->pix_icon('redcircle', $fullmodname, 'report_vmoodle', array('width' => $graphratio, 'height' => $graphratio));
+            }
+            $row[] = $html;
+
+            $stdresult[] = array($vhost->name, ($year) ? $year : get_string('whenever', 'report_vmoodle'), $typename, $count);
+        }
+    }
+
+    if ($firstline) {
+        $headerarr[] = $headers;
+    }
+    $stdresultarr[] = $stdresult;
+    $firstline = false;
+    $table->data[] = $row;
+}
+
+$totalrow = array();
+$totalrow[] = $allnodesstr;
+foreach ($resourcetypes as $rt) {
+    if (!empty($allnodes[$rt->typename])) {
+        $totalrow[] = $renderer->format_number($allnodes[$rt->typename]);
+    } else {
+        $totalrow[] = $renderer->format_number(0);
     }
 }
+$table->data[] = $totalrow;
 
-$str .= '</tr></table>';
+$str = '';
+$str .= $renderer->filter_form('');
 
-$str .= $OUTPUT->heading(get_string('totalresourcetypesuses', 'report_vmoodle'), 2);
+$str .= $OUTPUT->heading(get_string('resourcetypes', 'report_vmoodle'), 2);
 
-$str .= '<table width="250" class="generaltable">';
-$str .= "<tr><th colspan=\"2\" class=\"header c0\" style=\"line-height:20px;\">$allnodesstr</th></tr>";
-
-$r = 0;
-$nettotal = 0;
-foreach ($allnodes as $typename => $rtcount) {
-    $typename = get_string('pluginname', $rt->typename);
-    $str .= "<tr class=\"row r$r\"><td class=\"cell c0\" style=\"border:1px solid #808080\">$typename</td><td class=\"cell c1\" style=\"border:1px solid #808080\">{$rtcount}</td></tr>";
-    $nettotal = 0 + $rtcount + @$nettotal;
-    $r = ($r + 1) % 2;
+if (is_dir($CFG->dirroot.'/local/staticguitexts')) {
+    $returnurl = new moodle_url('/admin/report/vmoodle/view.php', array('view' => 'resourcetypes'));
+    $str .= local_print_static_text('static_vmoodle_report_modules', $returnurl, '', true);
 }
 
-$str .= "<tr class=\"row r$r\"><td class=\"cell c0\" style=\"border:1px solid #808080;font-weight:bolder\">$networktotalstr</td><td class=\"cell c1\" style=\"border:1px solid #808080;font-weight:bolder\">{$nettotal}</td></tr>";
-$str .= "</table></td>";
+$str .= html_writer::table($table);

@@ -72,67 +72,6 @@ function vmoodle_report_write_init_xls(&$workbook, $view, $latinexport = false) 
     return $worksheet;
 }
 
-function mnet_report_assignment_get_types() {
-    global $CFG;
-
-    $standardassignments = array('upload','online','uploadsingle','offline');
-    foreach ($standardassignments as $assignmenttype) {
-        $type = new object();
-        $type->modclass = MOD_CLASS_ACTIVITY;
-        $type->type = "assignment&amp;type=$assignmenttype";
-        $type->typestr = get_string("type$assignmenttype", 'assignment');
-        $types[$assignmenttype] = $type;
-    }
-
-    // Drop-in extra assignment types.
-    $assignmenttypes = get_list_of_plugins('mod/assignment/type');
-    foreach ($assignmenttypes as $assignmenttype) {
-        if (!empty($CFG->{'assignment_hide_'.$assignmenttype})) {
-            // Not wanted.
-            continue;
-        }
-
-        if (!in_array($assignmenttype, $standardassignments)) {
-            $type = new object();
-            $type->modclass = MOD_CLASS_ACTIVITY;
-            $type->type = "assignment&amp;type=$assignmenttype";
-            $type->typestr = get_string("type$assignmenttype", 'assignment_'.$assignmenttype);
-            $types[$assignmenttype] = $type;
-        }
-    }
-
-    return $types;
-}
-
-function mnet_reports_get_assignmenttypes($vhost, $year) {
-    global $DB;
-
-    $yearclause = '';
-    if (!empty($year)) {
-        $yearclause = " AND YEAR( FROM_UNIXTIME(cm.added)) = $year ";
-    }
-
-    $sql = "
-        SELECT
-            a.assignmenttype as assignmenttype,
-            COUNT(*) as atcount
-        FROM
-            `{$vhost->vdbname}`.{$vhost->vdbprefix}assignment a,
-            `{$vhost->vdbname}`.{$vhost->vdbprefix}course_modules cm,
-            `{$vhost->vdbname}`.{$vhost->vdbprefix}modules m
-        WHERE
-            a.id = cm.instance AND
-            cm.module = m.id AND
-            m.name = 'assignment'
-            $yearclause
-        GROUP
-            BY assignmenttype
-        ORDER BY
-            assignmenttype
-    ";
-    return $DB->get_records_sql($sql);
-}
-
 function mnet_report_get_courses($vhost, $mode, $year) {
     global $DB;
 

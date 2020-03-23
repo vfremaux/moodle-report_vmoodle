@@ -28,47 +28,35 @@ defined('MOODLE_INTERNAL') || die();
 // Preloads all QTYPES.
 require_once($CFG->dirroot.'/lib/questionlib.php');
 
-$year = optional_param('year', 0, PARAM_INT); 
-
-$str = '';
-$str .= '<form name="chooseyearform">';
-$years[] = get_string('whenever', 'report_vmoodle');
-for ($i = 0 ; $i < 15 ; $i++) {
-    $years[2009 + $i] = 2009 + $i;
-}
-
-$str .= get_string('addeddate', 'report_vmoodle');
-$str .= html_writer::select($years, 'year', $year, array());
-$gostr = get_string('apply', 'report_vmoodle');
-$str .= ' <input type="hidden" name="view" value="questiontypes" />';
-$str .= " <input type=\"submit\" value=\"$gostr\" />";
-$str .= '</form>';
-
-$str .= $OUTPUT->heading(get_string('questiontypes', 'report_vmoodle'), 2);
-
-if (is_dir($CFG->dirroot.'/local/staticguitexts')) {
-    $str .= local_print_static_text('static_vmoodle_report_questiontypes', $CFG->wwwroot.'/admin/report/vmoodle/view.php', '', true);
-}
-
-$str .= '<table width="100%"><tr>';
-
-$col = 0;
-$overall = 0 ;
-$totalstr = get_string('totalquestiontypes', 'report_vmoodle');
-$allnodesstr = get_string('allnodes', 'report_vmoodle');
-$networktotalstr = get_string('networktotal', 'report_vmoodle');
+$year = optional_param('year', 0, PARAM_INT);
 
 $yearclause = '';
 if (!empty($year)) {
-    $yearclause = " AND YEAR( FROM_UNIXTIME(q.timecreated)) = $year ";
+    $yearclause = " AND YEAR( FROM_UNIXTIME(q.timecreated)) <= $year ";
 }
+
+
+$table = new html_table();
+$hostnamestr = get_string('hostname', 'report_vmoodle');
+$table->head = array($hostnamestr);
+$table->size = array('25%');
+$table->align = array('left');
+$table->width = '95%';
 
 $allnodes = array();
 $stdresultarr = array();
 
+$totquestiontypes = 0;
+
+$installedqtypes = question_bank::get_all_qtypes();
+$qtypenames = array();
+foreach (array_keys($installedqtypes) as $qtname) {
+    if (!in_array($qtname, $qtypenames)) {
+        $qtypenames[] = $qtname;
+    }
+}
+
 foreach ($vhosts as $vhost) {
-    $totquestiontypes = 0;
-    $str .= '<td valign="top">';
     $sql = "
         SELECT
             q.qtype as typename,
@@ -84,44 +72,120 @@ foreach ($vhosts as $vhost) {
             typename
     ";
 
-    $str .= '<table width="100%" class="generaltable">';
-    $str .= '<tr><th colspan="2" class="header c0" style="line-height:20px" >'.$vhost->name.'</th></tr>';
-
-    $r = 0;
-    if ($questiontypes = $DB->get_records_sql($sql)) {
-        foreach ($questiontypes as $qt) {
-            $typename = get_string('pluginname', 'qtype_'.$qt->typename);
-            $str .= "<tr class=\"row r$r\"><td width=\"80%\" class=\"cell c0\" style=\"border:1px solid #808080\">$typename</td><td width=\"20%\" class=\"cell c1\" style=\"border:1px solid #808080\">{$qt->qtcount}</td></tr>";
-            $totquestiontypes = 0 + $qt->qtcount + @$totquestiontypes;
-            $allnodes[$qt->typename] = 0 + $qt->qtcount + @$allnodes[$qt->typename];
-            $r = ($r + 1) % 2;
-            $stdresultarr[] = array($vhost->name, ($year) ? $year : get_string('whenever', 'report_vmoodle'), $typename, $qt->typename);
+    if ($qtypes = $DB->get_records_sql($sql)) {
+        // From real use.
+        foreach ($qtypes as $q) {
+            if (!in_array($q->modname, $qtypenames)) {
+                $qtypenames[] = $q->typename;
+            }
+            $allnodes[$q->typename] = 0 + $q->qtcount + @$allnodes[$q->typename];
+            $hostquestiontypes[$vhost->vhostname][$q->typename] = $q->qtcount;
+            if ($q->qtcount > $maxscale) {
+                $maxscale = $q->qtcount;
+            }
         }
     }
-    $str .= "<tr class=\"row r$r\"><td width=\"80%\" class=\"cell c0\" style=\"line-height:20px\">$totalstr</td><td width=\"20%\" class=\"cell c1\" style=\"font-weight:bolder;border:1px solid #808080\">{$totquestiontypes}</td></tr>";
-    $str .= '</table></td>';
 
-    $col++;
-    if ($col >= 4) {
-        $str .= '</tr><tr>';
-        $col = 0;
+    // Feed missing installed types.
+    foreach (array_keys($installedqtypes) as $qtname) {
+        if (!array_key_exists($qtname, $hostquestiontypes[$vhost->vhostname])) {
+            $hostquestiontypes[$vhost->vhostname][$qtname] = 0;
+        }
     }
 }
 
-$str .= '</tr></table>';
 
-$str .= $OUTPUT->heading(get_string('totalquestiontypesuses', 'report_vmoodle'), 2);
-
-$str .= '<table width="250" class="generaltable">';
-$str .= '<tr><th colspan="2" class="header c0" style="line-height:20px;">'.$allnodesstr.'</th></tr>';
-
-$r = 0;
-$nettotal = 0;
-foreach ($allnodes as $typename => $qtcount) {
-    $typename = get_string('pluginname', 'qtype_'.$typename);
-    $str .= "<tr class=\"row r$r\"><td class=\"cell c0\" style=\"border:1px solid #808080\">$typename</td><td class=\"cell c1\" style=\"border:1px solid #808080\">{$qtcount}</td></tr>";
-    $nettotal = 0 + $qtcount + @$nettotal;
-    $r = ($r + 1) % 2;
+foreach ($qtypenames as $qt) {
+    if (!is_dir($CFG->dirroot.'/question/type/'.$qt)) {
+        // Care about uninstalled modules.
+        continue;
+    }
+    $fullmodnames[$qt] = get_string('pluginname', 'qtype_'.$qt);
+    $modicons[$qt] = $OUTPUT->pix_icon('icon', $fullmodnames[$qt], 'qtype_'.$qt, array('width' => '32px', 'height' => '32px'));
 }
-$str .= "<tr class=\"row r$r\"><td class=\"cell c0\" style=\"border:1px solid #808080;font-weight:bolder\">$networktotalstr</td><td class=\"cell c1\" style=\"border:1px solid #808080;font-weight:bolder\">{$nettotal}</td></tr>";
-$str .= '</table></td>';
+
+asort($fullmodnames);
+
+foreach ($fullmodnames as $qt => $fullmodname) {
+    $table->head[] = $modicons[$qt];
+    $table->align[] = 'center';
+    $table->size[] = '5%';
+}
+
+$headers = array('host');
+$firstline = true;
+
+foreach ($vhosts as $vhost) {
+
+    $stdresult = array($vhost->vhostname);
+
+    $row = array();
+    $row[] = $renderer->host_full_name($vhost);
+
+    if (!empty($fullmodnames)) {
+        foreach ($fullmodnames as $qt => $fullmodname) {
+            if ($firstline) {
+                $headers[] = $qt;
+            }
+
+            // Data in row.
+            $count = $hostquestiontypes[$vhost->vhostname][$qt];
+            $graphratio = 0;
+            if ($count) {
+                $graphratio = round(log($count) * 10) + 1;
+            }
+            $html = $renderer->format_number($count);
+            $html .= '<br/>';
+
+            $sql = "
+                SELECT
+                    value
+                FROM
+                    `{$vhost->vdbname}`.{$vhost->vdbprefix}config_plugins cf
+                WHERE
+                    plugin = ? AND
+                    name = ?
+            ";
+            $disabled = $DB->get_field_sql($sql, array('question', $qt.'_disabled'));
+
+            if ($disabled) {
+                $html .= $OUTPUT->pix_icon('redcircle', $fullmodname, 'report_vmoodle', array('width' => $graphratio, 'height' => $graphratio));
+            } else {
+                $html .= $OUTPUT->pix_icon('bluecircle', $fullmodname, 'report_vmoodle', array('width' => $graphratio, 'height' => $graphratio));
+            }
+            $row[] = $html;
+
+            $stdresult[] = array($vhost->name, ($year) ? $year : get_string('whenever', 'report_vmoodle'), $typename, $count);
+        }
+    }
+
+    if ($firstline) {
+        $headerarr[] = $headers;
+    }
+    $stdresultarr[] = $stdresult;
+    $firstline = false;
+    $table->data[] = $row;
+}
+
+$totalrow = array();
+$allnodesstr = get_string('allnodes', 'report_vmoodle');
+$totalrow[] = $allnodesstr;
+foreach (array_keys($fullmodnames) as $qt) {
+    if (!empty($allnodes[$qt])) {
+        $totalrow[] = $renderer->format_number($allnodes[$qt]);
+    } else {
+        $totalrow[] = $renderer->format_number(0);
+    }
+}
+$table->data[] = $totalrow;
+
+$str = '';
+$str .= $renderer->filter_form('');
+
+$str .= $OUTPUT->heading(get_string('questiontypes', 'report_vmoodle'), 2);
+
+if (is_dir($CFG->dirroot.'/local/staticguitexts')) {
+    $str .= local_print_static_text('static_vmoodle_report_questiontypes', $CFG->wwwroot.'/admin/report/vmoodle/view.php', '', true);
+}
+
+$str .= html_writer::table($table);

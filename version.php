@@ -34,5 +34,5 @@ $plugin->maturity = MATURITY_STABLE;
 $plugin->dependencies = array('local_vmoodle' => 2017090101);
 
 // Non moodle attributes.
-$plugin->codeincrement = '3.5.0000';
+$plugin->codeincrement = '3.5.0001';
 

@@ -35,12 +35,18 @@ $string['coursesperhost'] = 'Volumes de cours par hôte';
 $string['coursetotals'] = 'Totaux d\'usages des cours';
 $string['created'] = 'Crées en';
 $string['createdbefore'] = 'Crées jusqu\'à';
+$string['daytot'] = 'Total quotidien';
+$string['dailysessions'] = 'Sessions par jour (logins)';
+$string['dailycnxs'] = 'Connexions par jour';
+$string['dailyuniquecnxs'] = 'Utilisateurs distincts';
+$string['dailystats'] = 'Statistiques d\'accès quotidiennes';
 $string['distinctusers'] = 'Utilisateurs distincts';
 $string['events'] = 'Q';
 $string['files'] = 'Fichiers';
 $string['formats'] = 'Formats de cours';
 $string['forumtypes'] = 'Types de forums';
 $string['graphs'] = 'Tendances';
+$string['home'] = 'Rapports VMoodle';
 $string['hidegraphs'] = 'Cacher les graphes';
 $string['hostname'] = 'Hôte';
 $string['individualconnections'] = 'Connexions distinctes';
@@ -122,3 +128,14 @@ $string['configbackexploredepth_desc'] = 'Le nombre d\'années d\'exploration da
 
 $string['configprofilefields_desc'] = 'Liste à virgule des noms courts de champs de profils
 personnalisés à ajouter aux résultats. Les rapports comptent des valeurs non nulles de ces champs.';
+
+$string['home_desc'] = '
+<p>Les rapports VMoodle tirent des requêtes directement dans les bases de données d\'instance. Ils ne sollicitent donc pas
+la couche réseau MNET, mais ceci veut également dire qu\'il ne peuvent donner des résultats que pour les instances qui
+sont hébergées sur le même serveur de base de données que l\'instance d\'où les rapports sont sollicités.</p>
+<p>L\'interrogation de toutes les instances peut conduire à une charge très lourde sur la base de données pour certains rapports.
+Ceci peut altérer les performances de production pendant le temps de calcul et d\'obtention des données. Pensez aussi que certains rapports peuvent
+mettre du temps à récupérer les données nécessaires.</p>
+<p>Sur des installations
+de grande taille utilisant des proxies, différents réglages de timeouts pourraient même empêcher l\'obtention des résultats.</p>
+';

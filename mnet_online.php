@@ -98,7 +98,7 @@ foreach ($vhosts as $vhost) {
     $vhost->id = 0 + $vhost->id;
     $online = $onlineusers[$vhost->id];
     $onlineratio = (@$allusers[$vhosts->id]) ? sprintf("%0.1d", $online / $allusers[$vhosts->id]) : 0;
-    $table->data[] = array($vhosts[$vhost->id]->name, $online, $renderer->graphbar($online, $maxusers), $onlineratio);
+    $table->data[] = array($renderer->host_full_name($vhost), $online, $renderer->graphbar($online, $maxusers), $onlineratio);
 }
 
 $str .= html_writer::table($table);

@@ -65,7 +65,7 @@ foreach ($vhosts as $vhost) {
     } else {
         $lastrunstr = '<div class="vmoodle-report-error">'.format_time($runfromdelay).'</div>';
     }
-    $table->data[] = array($vhosts[$vhost->id]->name, $lastrunstr);
+    $table->data[] = array($renderer->host_full_name($vhost), $lastrunstr);
 }
 
 $str .= html_writer::table($table);

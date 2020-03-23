@@ -25,20 +25,17 @@ defined('MOODLE_INTERNAL') || die();
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-$year = optional_param('year', 0, PARAM_INT); 
+$year = optional_param('year', 0, PARAM_INT);
 
 $col = 0;
 $overall = 0 ;
-$totalstr = get_string('totalmodules', 'report_vmoodle');
 $allnodesstr = get_string('allnodes', 'report_vmoodle');
 $hostnamestr = get_string('hostname', 'report_vmoodle');
 
 $yearclause = '';
 if (!empty($year) && $year != 9999) {
-    $yearclause = " AND YEAR( FROM_UNIXTIME(cm.added)) = $year ";
+    $yearclause = " AND YEAR( FROM_UNIXTIME(cm.added)) <= $year ";
 }
-
-$stdresultarr = array();
 
 $table = new html_table();
 $table->head = array($hostnamestr);
@@ -52,18 +49,19 @@ foreach ($vhosts as $vhost) {
 
     $totmodules = 0;
     $sql = "
-        SELECT 
+        SELECT
             m.name as modname,
             m.visible as visible,
-            COUNT(*) as modcount
-        FROM 
-            `{$vhost->vdbname}`.{$vhost->vdbprefix}modules m,
+            COUNT(cm.id) as modcount
+        FROM
+            `{$vhost->vdbname}`.{$vhost->vdbprefix}modules m
+        LEFT JOIN
             `{$vhost->vdbname}`.{$vhost->vdbprefix}course_modules cm
-        WHERE 
-            cm.module = m.id 
+        ON
+            cm.module = m.id
             $yearclause
-        GROUP 
-            BY modname
+        GROUP BY
+            modname
         ORDER BY
             modname
     ";
@@ -82,7 +80,12 @@ foreach ($vhosts as $vhost) {
         }
     }
 }
+
 foreach ($modnames as $mn) {
+    if (!is_dir($CFG->dirroot.'/mod/'.$mn)) {
+        // Care about uninstalled modules.
+        continue;
+    }
     $fullmodnames[$mn] = get_string('modulenameplural', $mn);
     $modicons[$mn] = $OUTPUT->pix_icon('icon', $fullmodnames[$mn], $mn, array('width' => '32px', 'height' => '32px'));
 }
@@ -95,25 +98,40 @@ foreach ($fullmodnames as $mn => $fullmodname) {
     $table->size[] = '5%';
 }
 
+$headers = array('host');
+$firstline = true;
+
 foreach ($vhosts as $vhost) {
+
+    $stdresult = array($vhost->vhostname);
 
     $row = array();
     $row[] = $renderer->host_full_name($vhost);
     foreach ($fullmodnames as $mn => $fullmodname) {
+        if ($firstline) {
+            $headers[] = $mn;
+        }
         if (!empty($hostmodules[$vhost->vhostname][$mn])) {
+            $stdresult[] = $hostmodules[$vhost->vhostname][$mn];
             $html = $renderer->format_number($hostmodules[$vhost->vhostname][$mn]);
-            $graphratio = round(log($hostmodules[$vhost->vhostname][$mn]) * 10);
+            $graphratio = round(log($hostmodules[$vhost->vhostname][$mn]) * 10) + 1;
             $html .= '<br/>';
             if ($mods[$mn]->visible) {
-                $html .= $OUTPUT->pix_icon('bluecircle', '', 'report_vmoodle', array('width' => $graphratio, 'height' => $graphtratio));
+                $html .= $OUTPUT->pix_icon('bluecircle', $fullmodname, 'report_vmoodle', array('width' => $graphratio, 'height' => $graphratio));
             } else {
-                $html .= $OUTPUT->pix_icon('redcircle', '', 'report_vmoodle', array('width' => $graphratio, 'height' => $graphtratio));
+                $html .= $OUTPUT->pix_icon('redcircle', $fullmodname, 'report_vmoodle', array('width' => $graphratio, 'height' => $graphratio));
             }
             $row[] = $html;
         } else {
+            $stdresult[] = 0;
             $row[] = $renderer->format_number(0);
         }
     }
+    if ($firstline) {
+        $headerarr[] = $headers;
+    }
+    $stdresultarr[] = $stdresult;
+    $firstline = false;
     $table->data[] = $row;
 }
 
