@@ -81,8 +81,18 @@ $totaluniquecnx = 0;
 $totalsesssions = 0;
 
 $statdays = array();
+$hostfilter = optional_param('hostfilter', '', PARAM_TEXT);
+foreach ($vhosts as $vhostid => $vhost) {
 
-foreach ($vhosts as $vhost) {
+    // Host filter.
+    if (!empty($hostfilter) && !preg_match('/'.preg_quote($hostfilter).'/', $vhost->name)) {
+        if (!preg_match(!preg_match('/'.preg_quote($hostfilter).'/', $vhost->shortname))) {
+            if (!preg_match(!preg_match('/'.preg_quote($hostfilter).'/', $vhost->vhostname))) {
+                unset($vhosts[$vhostid]);
+                continue;
+            }
+        }
+    }
 
     $sql = "
         SELECT
@@ -97,20 +107,20 @@ foreach ($vhosts as $vhost) {
         GROUP BY
             FROM_UNIXTIME({$timefield}, \"%m-%d\")
         ORDER BY
-            day
+            FROM_UNIXTIME({$timefield}, \"%m-%d\")
     ";
 
     if ($dailycons = $DB->get_records_sql($sql)) {
         foreach ($dailycons as $con) {
             $data = $con->cnxs;
-            $totalcnx = $totalcnx + $data;
-            $dtotalcnx[$con->day] = $dtotalcnx[$con->day] + $data;
-            $dcnx[$vhost->shortname][$con->day] = $data;
+            $totalcnxs = $totalcnxs + $data;
+            $dtotalcnxs[$con->day] = $dtotalcnxs[$con->day] + $data;
+            $dcnxs[$vhost->shortname][$con->day] = $data;
 
             $data = $con->uniquecnxs;
-            $totaluniquecnx = $totaluniquecnx + $data;
-            $dtotaluniquecnx[$con->day] = $dtotaluniquecnx[$con->day] + $data;
-            $duniquecnx[$vhost->shortname][$con->day] = $data;
+            $totaluniquecnxs = $totaluniquecnxs + $data;
+            $dtotaluniquecnxs[$con->day] = $dtotaluniquecnxs[$con->day] + $data;
+            $duniquecnxs[$vhost->shortname][$con->day] = $data;
 
             $data = $con->sessions;
             $totalsessions = $totalsessions + $data;
@@ -128,12 +138,22 @@ foreach ($vhosts as $vhost) {
 if (!empty($statdays)) {
     sort($statdays);
 } else {
-    echo $OUTPUT->notification(get_string('nodata', 'report_vmoodle'));
+    $str = $renderer->host_filter();
+    $str .= '<br/>';
+    $str .= $OUTPUT->notification(get_string('nodata', 'report_vmoodle'));
     return;
 }
 
 $template = new StdClass;
-$template->h1 = $OUTPUT->heading(get_string('dailycnxs', 'report_vmoodle'), 3, 'report-vmoodle-panehandle');
+
+$template->filter = $renderer->host_filter();
+
+$params = [
+    'id' => $id,
+   'class' => 'report-vmoodle-panehandle',
+   'data-id' => 1
+];
+$template->h1 = html_writer::tag('h3', get_string('dailycnxs', 'report_vmoodle'), $params);
 
 $table = new html_table();
 $table->head = array($hostnamestr);
@@ -149,24 +169,35 @@ foreach ($statdays as $d) {
 foreach ($vhosts as $vhost) {
     $vhostname = $renderer->host_full_name($vhost);
     $row = array($vhostname);
+    $xlsrow = array($vhostname);
     foreach ($statdays as $d) {
         $data = 0 + @$dcnxs[$vhost->shortname][$d];
         $row[] = ($data) ? '<b>'.$data.'</b>' : '-';
+        $xlsrow[] = $data;
     }
-    $stdresultarr[] = $row;
+    $stdresultarr[] = $xlsrow;
     $table->data[] = $row;
 }
 $lastrow = array(get_string('daytot', 'report_vmoodle'));
+$xlslastrow = array(get_string('daytot', 'report_vmoodle'));
 foreach ($statdays as $d) {
     $data = 0 + @$dtotalcnxs[$d];
-    $row[] = ($data) ? '<b>'.$data.'</b>' : '-';
+    $lastrow[] = ($data) ? '<b>'.$data.'</b>' : '-';
+    $xlslastrow[] = $data;
 }
+$stdresultarr[] = $xlslastrow;
+$table->data[] = $lastrow;
 
 $stdresultarr[] = [];
 
 $template->t1 = html_writer::table($table);
 
-$template->h2 = $OUTPUT->heading(get_string('dailyuniquecnxs', 'report_vmoodle'), 3, 'report-vmoodle-panehandle');
+$params = [
+    'id' => $id,
+   'class' => 'report-vmoodle-panehandle',
+   'data-id' => 2
+];
+$template->h2 = html_writer::tag('h3', get_string('dailyuniquecnxs', 'report_vmoodle'), $params);
 
 $table = new html_table();
 $table->head = array($hostnamestr);
@@ -182,23 +213,34 @@ foreach ($statdays as $d) {
 foreach ($vhosts as $vhost) {
     $vhostname = $renderer->host_full_name($vhost);
     $row = array($vhostname);
+    $xlsrow = array($vhostname);
     foreach ($statdays as $d) {
         $data = 0 + @$duniquecnxs[$vhost->shortname][$d];
         $row[] = ($data) ? '<b>'.$data.'</b>' : '-';
+        $xlsrow[] = $data;
     }
-    $stdresultarr[] = $row;
+    $stdresultarr[] = $xlsrow;
     $table->data[] = $row;
 }
 $lastrow = array(get_string('daytot', 'report_vmoodle'));
+$xlslastrow = array(get_string('daytot', 'report_vmoodle'));
 foreach ($statdays as $d) {
     $data = 0 + @$dtotaluniquecnxs[$d];
-    $row[] = ($data) ? '<b>'.$data.'</b>' : '-';
+    $lastrow[] = ($data) ? '<b>'.$data.'</b>' : '-';
+    $xlslastrow[] = $data;
 }
+$stdresultarr[] = $xlslastrow;
+$table->data[] = $lastrow;
 
 $template->t2 = html_writer::table($table);
 $stdresultarr[] = [];
 
-$template->h3 = $OUTPUT->heading(get_string('dailysessions', 'report_vmoodle'), 3, 'report-vmoodle-panehandle');
+$params = [
+    'id' => $id,
+   'class' => 'report-vmoodle-panehandle',
+   'data-id' => 3
+];
+$template->h3 = html_writer::tag('h3', get_string('dailysessions', 'report_vmoodle'), $params);
 
 $table = new html_table();
 $table->head = array($hostnamestr);
@@ -214,19 +256,26 @@ foreach ($statdays as $d) {
 foreach ($vhosts as $vhost) {
     $vhostname = $renderer->host_full_name($vhost);
     $row = array($vhostname);
+    $xlsrow = array($vhostname);
     foreach ($statdays as $d) {
         $data = 0 + @$dsessions[$vhost->shortname][$d];
         $row[] = ($data) ? '<b>'.$data.'</b>' : '-';
+        $xlsrow[] = $data;
     }
-    $stdresultarr[] = $row;
+    $stdresultarr[] = $xlsrow;
     $table->data[] = $row;
 }
+
 $lastrow = array(get_string('daytot', 'report_vmoodle'));
+$xlslastrow = array(get_string('daytot', 'report_vmoodle'));
 foreach ($statdays as $d) {
     $data = 0 + @$dtotalsessions[$d];
-    $row[] = ($data) ? '<b>'.$data.'</b>' : '-';
+    $lastrow[] = ($data) ? '<b>'.$data.'</b>' : '-';
+    $xlslastrow[] = $data;
 }
+$stdresultarr[] = $xlslastrow;
+$table->data[] = $lastrow;
 
 $template->t3 = html_writer::table($table);
 
-$str = $OUTPUT->render_from_template('report_vmoodle/daily_cnxs', $template);
+$str .= $OUTPUT->render_from_template('report_vmoodle/daily_cnxs', $template);

@@ -175,6 +175,13 @@ class report_vmoodle_renderer extends plugin_renderer_base {
         return $str;
     }
 
+    public function host_filter() {
+        $template = new StdClass;
+        $template->value = optional_param('hostfilter', 'cnxs', PARAM_TEXT);
+        $template->view = optional_param('view', 'cnxs', PARAM_TEXT);
+        return $this->output->render_from_template('report_vmoodle/hostfilterform', $template);
+    }
+
     public function host_full_name($vhostorname) {
         global $DB, $CFG, $SITE;
 
@@ -243,7 +250,7 @@ class report_vmoodle_renderer extends plugin_renderer_base {
 
         if ($hasoptions || !empty($additionalinputs)) {
             $template->gostr = get_string('apply', 'report_vmoodle');
-            return $this->output->render_from_template('report_vmoodle/filterform', $template);
+            return $this->output->render_from_template('report_vmoodle/yearfilterform', $template);
         }
     }
 

@@ -22,12 +22,12 @@
 
 }}
 <!-- filterform -->
-<form name="filterform" id="report-vmoodle-filterform">
+<form name="yearfilterform" id="report-vmoodle-yearfilterform">
     <input type="hidden" name="view" value="{{view}}" />
 
     {{{yearselect}}}
 
     {{{additionalinputs}}}
-    <input type="submit" value="{{gostr}}" />
+    <input type="submit" value="{{#str}}apply, report_vmoodle{{/str}}" />
 </form>
 <!-- /filterform -->
