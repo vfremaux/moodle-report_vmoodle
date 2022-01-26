@@ -40,36 +40,35 @@ class report_vmoodle_renderer extends plugin_renderer_base {
 
         // Print tabs with options for user.
 
-        $availableviews = array('home',
-                                'online',
-                                'cnxs',
-                                'dailycnxs',
-                                'roles',
-                                'users',
-                                'logs',
-                                'files',
-                                'modules',
-                                'blocks',
-                                'courses',
-                                'formats',
-                                'questiontypes',
-                                'resourcetypes',
-                                'sharedresources',
-                                'forumtypes',
-                                'userclasses',
-                                'slowpages');
+        $availableviews = array('online',
+                               'cnxs',
+                               'roles',
+                               'users',
+                               'logs',
+                               'files',
+                               'modules',
+                               'blocks',
+                               'courses',
+                               'formats',
+                               'assignmenttypes',
+                               'questiontypes',
+                               'resourcetypes',
+                               'sharedresources',
+                               'forumtypes',
+                               'userclasses',
+                               'slowpages');
 
         if (!in_array($view, $availableviews)) {
-            $view = 'home';
+            if (preg_match('#'.@$CFG->mainhostprefix.'#', $CFG->wwwroot)) {
+                $view = 'online';
+            } else {
+                $view = 'cnxs';
+            }
         }
-        $taburl = new moodle_url('/report/vmoodle/view.php', array('view' => 'home'));
-        $rows[0][] = new tabobject('home', $taburl, get_string('home', 'report_vmoodle'));
         $taburl = new moodle_url('/report/vmoodle/view.php', array('view' => 'online'));
         $rows[0][] = new tabobject('online', $taburl, get_string('online', 'report_vmoodle'));
         $taburl = new moodle_url('/report/vmoodle/view.php', array('view' => 'cnxs'));
         $rows[0][] = new tabobject('cnxs', $taburl, get_string('cnxs', 'report_vmoodle'));
-        $taburl = new moodle_url('/report/vmoodle/view.php', array('view' => 'dailycnxs'));
-        $rows[0][] = new tabobject('dailycnxs', $taburl, get_string('dailycnxs', 'report_vmoodle'));
         $taburl = new moodle_url('/report/vmoodle/view.php', array('view' => 'users'));
         $rows[0][] = new tabobject('users', $taburl, get_string('users', 'report_vmoodle'));
         if (is_dir($CFG->dirroot.'/local/ent_installer')) {
@@ -92,6 +91,8 @@ class report_vmoodle_renderer extends plugin_renderer_base {
         $rows[0][] = new tabobject('blocks', $taburl, get_string('blocks', 'report_vmoodle'));
         $taburl = new moodle_url('/report/vmoodle/view.php', array('view' => 'formats'));
         $rows[0][] = new tabobject('formats', $taburl, get_string('formats', 'report_vmoodle'));
+        $taburl = new moodle_url('/report/vmoodle/view.php', array('view' => 'assignmenttypes'));
+        $rows[0][] = new tabobject('assignmenttypes', $taburl, get_string('assignmenttypes', 'report_vmoodle'));
         $taburl = new moodle_url('/report/vmoodle/view.php', array('view' => 'questiontypes'));
         $rows[0][] = new tabobject('questiontypes', $taburl, get_string('questiontypes', 'report_vmoodle'));
         $taburl = new moodle_url('/report/vmoodle/view.php', array('view' => 'resourcetypes'));
@@ -175,13 +176,6 @@ class report_vmoodle_renderer extends plugin_renderer_base {
         return $str;
     }
 
-    public function host_filter() {
-        $template = new StdClass;
-        $template->value = optional_param('hostfilter', 'cnxs', PARAM_TEXT);
-        $template->view = optional_param('view', 'cnxs', PARAM_TEXT);
-        return $this->output->render_from_template('report_vmoodle/hostfilterform', $template);
-    }
-
     public function host_full_name($vhostorname) {
         global $DB, $CFG, $SITE;
 
@@ -203,12 +197,6 @@ class report_vmoodle_renderer extends plugin_renderer_base {
 
         $mnetname = '';
         if ($mneth = $DB->get_record('mnet_host', array('wwwroot' => $vhostname))) {
-            // Hidden fix on mnet names, remove the connect on site mention (FR).
-            $oldname = $mneth->name;
-            $mneth->name = str_replace(': Se connecter sur le site', '', $mneth->name);
-            if ($oldname != $mneth->name) {
-                $DB->set_field('mnet_host', 'name', $mneth->name, array('id' => $mneth->id));
-            }
             return $vhost->name." ({$mneth->name})";
         }
 
@@ -250,7 +238,7 @@ class report_vmoodle_renderer extends plugin_renderer_base {
 
         if ($hasoptions || !empty($additionalinputs)) {
             $template->gostr = get_string('apply', 'report_vmoodle');
-            return $this->output->render_from_template('report_vmoodle/yearfilterform', $template);
+            return $this->output->render_from_template('report_vmoodle/filterform', $template);
         }
     }
 
@@ -264,7 +252,7 @@ class report_vmoodle_renderer extends plugin_renderer_base {
 
     /**
      * Given an html table standard structure, renderers specially the table with delegated row containers.
-     * It amits that the data[] value array contain empty arrays for which a row empty container will
+     * It omits that the data[] value array contain empty arrays for which a row empty container will
      * be printed.
      * We expect the data being a table of objects giving ajax delegation information. We may allow
      * some rows being real data array, in which case they will be printed the same way than the standard
@@ -337,7 +325,7 @@ class report_vmoodle_renderer extends plugin_renderer_base {
                 $delegationattrs .= ' delegated-context="'.urlencode($table->data[$i]->contextstring).'"';
                 $str .= '<tr class="delegated-content '.$class.'" '.$delegationattrs.'" ></tr>';
             } else {
-                $str .= '<tr class="'.$class.'" >';
+                $str .= '<tr class="undelegated '.$class.'" >';
                 for ($j = 0; $j < $maxcol; $j++) {
                     $align = 'leftalign';
                     if (!empty($table->align[$j])) {

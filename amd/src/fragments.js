@@ -52,7 +52,7 @@ define(['jquery', 'core/config', 'core/log'], function ($, cfg, log) {
                 // find sumators and add results in it.
                 for (var field in data.data) {
                     var newval = parseInt($('#sumator-' + field).html());
-                    $('#sumator-' + field).html(newval + data.data.field);
+                    $('#sumator-' + field).html(newval + parseInt(data.data[field]));
                 }
             }, 'json');
         }

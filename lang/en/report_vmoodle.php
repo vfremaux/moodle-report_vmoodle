@@ -38,11 +38,6 @@ $string['coursesperhost'] = 'Courses per host';
 $string['coursetotals'] = 'Course total';
 $string['created'] = 'Created in ';
 $string['createdbefore'] = 'Created until';
-$string['daytot'] = 'Day total';
-$string['dailysessions'] = 'Daily sessions (logins)';
-$string['dailycnxs'] = 'Daily connections';
-$string['dailyuniquecnxs'] = 'Daily unique users';
-$string['dailystats'] = 'Daily access stats';
 $string['distinctusers'] = 'Distinct users';
 $string['events'] = 'Q';
 $string['files'] = 'Files';
@@ -52,7 +47,6 @@ $string['forumtypes'] = 'Forum types';
 $string['graphs'] = 'Trends';
 $string['hidegraphs'] = 'Hide graphs';
 $string['hostname'] = 'Host';
-$string['home'] = 'VMoodle reports home';
 $string['individualconnections'] = 'Individual connections';
 $string['locals'] = 'Local users';
 $string['logs'] = 'Logs';
@@ -133,12 +127,3 @@ $string['configbackexploredepth_desc'] = 'Number of years the report can seek ba
 
 $string['configprofilefields_desc'] = 'Coma separated profile field shortnames to fetch on user report.
 These feidls must be added as custom fields. Report counts any non null value.';
-
-$string['home_desc'] = '
-<p>VMoodle reports do direct queries into the moodle instance databases, that is not using Moodle Network calls. this means
-that it will not provide all results when databases are spread across many database server instances.</p>
-<p>Take care that some reports may do heavy queries in each instance, that may lead to a high database load for building
-the report. So examine the moment you are launching such reports, regarding the global activity of your users.</p>
-<p>On big sized installs, some reports may take some time to be available. Check also proxies timeout, as some timeout
-configuration may cause trouble in getting the result in the browser.</p>
-';

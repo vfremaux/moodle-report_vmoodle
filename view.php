@@ -35,7 +35,7 @@ $systemcontext = context_system::instance();
 require_login();
 require_capability('report/vmoodle:view', $systemcontext);
 
-$view = optional_param('view', 'home', PARAM_TEXT);
+$view = optional_param('view', 'cnxs', PARAM_TEXT);
 $output = optional_param('output', 'html', PARAM_TEXT);
 
 if ($output == 'html') {
@@ -69,16 +69,8 @@ if (preg_match('#'.@$CFG->mainhostprefix.'#', $CFG->wwwroot)) {
     $vhosts = $vhosts + $DB->get_records('local_vmoodle', array('enabled' => '1'));
 }
 
-if ($view == 'home') {
-    include($CFG->dirroot.'/report/vmoodle/mnet_home.php');
-}
-
 if ($view == 'online') {
     include($CFG->dirroot.'/report/vmoodle/mnet_online.php');
-}
-
-if ($view == 'dailycnxs') {
-    include($CFG->dirroot.'/report/vmoodle/mnet_daily_cnxs.php');
 }
 
 if ($view == 'cnxs') {
@@ -121,6 +113,10 @@ if ($view == 'blocks') {
 
 if ($view == 'formats') {
     include($CFG->dirroot.'/report/vmoodle/mnet_formats.php');
+}
+
+if ($view == 'assignmenttypes') {
+    include($CFG->dirroot.'/report/vmoodle/mnet_assignmenttypes.php');
 }
 
 if ($view == 'questiontypes') {

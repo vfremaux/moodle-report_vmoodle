@@ -94,7 +94,7 @@ class users extends base {
             SELECT
                 SUM(CASE WHEN u.suspended = 0 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as localusers,
                 SUM(CASE WHEN u.suspended = 0 AND u.mnethostid != ".$localusershost." THEN 1 ELSE 0 END) as remoteusers,
-                SUM(CASE WHEN u.firstaccess = 0 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as localunconnected,
+                SUM(CASE WHEN u.firstaccess = 0 AND suspended = 0 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as localunconnected,
                 SUM(CASE WHEN u.suspended = 1 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as suspendedusers
                 $profilefields
             FROM
