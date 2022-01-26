@@ -46,12 +46,15 @@ define(['jquery', 'core/config', 'core/log'], function ($, cfg, log) {
             url += '&wwwroot=' + that.attr('delegated-context');
 
             $.get(url, function(data) {
+                var newval;
                 log.debug('Feeding '+'tr[delegated-context="' + data.source + '"]');
                 $('tr[delegated-context="' + data.source + '"]').html(data.html);
 
                 // find sumators and add results in it.
                 for (var field in data.data) {
-                    var newval = parseInt($('#sumator-' + field).html());
+                    newval = parseInt($('#sumator-' + field).html());
+                    log.debug('ADM Vmoodle updating field '+ field);
+                    log.debug('ADM orgin value '+ newval);
                     $('#sumator-' + field).html(newval + parseInt(data.data[field]));
                 }
             }, 'json');
