@@ -252,7 +252,7 @@ class report_vmoodle_renderer extends plugin_renderer_base {
 
     /**
      * Given an html table standard structure, renderers specially the table with delegated row containers.
-     * It omits that the data[] value array contain empty arrays for which a row empty container will
+     * It amits that the data[] value array contain empty arrays for which a row empty container will
      * be printed.
      * We expect the data being a table of objects giving ajax delegation information. We may allow
      * some rows being real data array, in which case they will be printed the same way than the standard
@@ -325,7 +325,7 @@ class report_vmoodle_renderer extends plugin_renderer_base {
                 $delegationattrs .= ' delegated-context="'.urlencode($table->data[$i]->contextstring).'"';
                 $str .= '<tr class="delegated-content '.$class.'" '.$delegationattrs.'" ></tr>';
             } else {
-                $str .= '<tr class="undelegated '.$class.'" >';
+                $str .= '<tr class="'.$class.'" >';
                 for ($j = 0; $j < $maxcol; $j++) {
                     $align = 'leftalign';
                     if (!empty($table->align[$j])) {
