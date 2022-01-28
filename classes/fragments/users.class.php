@@ -94,7 +94,7 @@ class users extends base {
             SELECT
                 SUM(CASE WHEN u.suspended = 0 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as localusers,
                 SUM(CASE WHEN u.suspended = 0 AND u.mnethostid != ".$localusershost." THEN 1 ELSE 0 END) as remoteusers,
-                SUM(CASE WHEN u.firstaccess = 0 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as localunconnected,
+                SUM(CASE WHEN u.firstaccess = 0 AND suspended = 0 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as localunconnected,
                 SUM(CASE WHEN u.suspended = 1 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as suspendedusers
                 $profilefields
             FROM
@@ -123,7 +123,7 @@ class users extends base {
                 $attrs = array('height' => '150', 'width' => 150);
                 $localusers .= '<br/>'.local_vflibs_jqplot_simple_donut($data, 'users_'.$this->vhost->id, 'report-vmoodle-user-charts', $attrs);
                 $row->localusers = $localusers;
-                $dataresult->locals = $luc;
+                $dataresult->localusers = $lus;
                 $dataresult->localsunconnected = $luu;
                 $row->remoteusers = $this->output->format_number($us->remoteusers);
                 $dataresult->remotes = $us->remoteusers;
@@ -156,6 +156,12 @@ class users extends base {
 
     }
 
+    /**
+     * returns a report "per host" fragment row.
+     * @param objectref &$dataresult additional data that can be sent to the javascript
+     * fragment receiver.
+     * @return an html rendererd table row with actualized data.
+     */
     public function get_fragment(&$dataresult = null) {
         global $OUTPUT;
 

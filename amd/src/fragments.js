@@ -44,6 +44,7 @@ define(['jquery', 'core/config', 'core/log'], function ($, cfg, log) {
             url += '?what=getfragment';
             url += '&fragment=' + that.attr('delegated-fragment');
             url += '&wwwroot=' + that.attr('delegated-context');
+            url += '&filter=' + that.attr('delegated-filter');
 
             $.get(url, function(data) {
                 var newval;
@@ -57,6 +58,20 @@ define(['jquery', 'core/config', 'core/log'], function ($, cfg, log) {
                     log.debug('ADM orgin value '+ newval);
                     $('#sumator-' + field).html(newval + parseInt(data.data[field]));
                 }
+
+                // sumator-ratios provide formula to refresh their values.
+                // formulas contain non terminal references to sumators ids.
+                $('.sumator-ratio').each(function() {
+                    var that = $(this);
+                    var formula = that.attr('data-formula');
+                    var vars = formula.match(/(sumator-[/w]+)/);
+                    for (var variable in vars) {
+                        varvalue = parseInt($(variable).html());
+                        formula.replace(variable, varvalue);
+                    }
+                    var ratioresult = eval(formula);
+                    this.html('(' + ratioresult + '% )');
+                })
             }, 'json');
         }
     };

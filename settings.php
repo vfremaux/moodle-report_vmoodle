@@ -43,4 +43,10 @@ if ($hassiteconfig) {
     $label = get_string('configprofilefields', 'report_vmoodle');
     $desc = get_string('configprofilefields_desc', 'report_vmoodle');
     $settings->add(new admin_setting_configtext($key, $label, $desc, ''));
+
+    $key = 'report_vmoodle/yearstart';
+    $label = get_string('configyearstart', 'report_vmoodle');
+    $desc = get_string('configyearstart_desc', 'report_vmoodle');
+    $default = true;
+    $settings->add(new admin_setting_configcheckbox($key, $label, $desc, $default));
 }

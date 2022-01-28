@@ -39,7 +39,6 @@ $action = required_param('what', PARAM_TEXT);
 switch ($action) {
     case 'getfragment': {
         include_once($CFG->dirroot.'/local/vflibs/jqplotlib.php');
-        local_vflibs_require_jqplot_libs();
         $fragment = required_param('fragment', PARAM_TEXT);
         $hostroot = required_param('wwwroot', PARAM_TEXT);
         $fragmentloader = report_vmoodle_get_fragment($fragment, $hostroot);

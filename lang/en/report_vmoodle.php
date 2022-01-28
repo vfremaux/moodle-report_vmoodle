@@ -33,6 +33,7 @@ $string['cnxratio'] = '(Connected ratio)';
 $string['cnxs'] = 'Connections (login)';
 $string['configbackexploredepth'] = 'Year backwards depth';
 $string['configprofilefields'] = 'Custom profile fields (markers)';
+$string['configyearstart'] = 'Shift start of year';
 $string['courses'] = 'Courses';
 $string['coursesperhost'] = 'Courses per host';
 $string['coursetotals'] = 'Course total';
@@ -100,7 +101,7 @@ $string['totalyearlyshort'] = 'Annual';
 $string['uncnxed'] = 'Unconnected';
 $string['userclasses'] = 'User Classes (local)';
 $string['usercount'] = 'Users';
-$string['users'] = 'Users';
+$string['users'] = 'Users {$a}';
 $string['vmoodlereport'] = 'Network Global Reports';
 $string['whenever'] = 'Whenever';
 $string['year'] = 'Year';
@@ -126,4 +127,6 @@ $string['december'] = 'Dec';
 $string['configbackexploredepth_desc'] = 'Number of years the report can seek backwards';
 
 $string['configprofilefields_desc'] = 'Coma separated profile field shortnames to fetch on user report.
-These feidls must be added as custom fields. Report counts any non null value.';
+These fields must be added as custom fields. Report counts any non null value.';
+
+$string['configyearstart_desc'] = 'Shift year start to September 1st for academic sessions';
