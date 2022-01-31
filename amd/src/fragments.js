@@ -69,7 +69,7 @@ define(['jquery', 'core/config', 'core/log'], function ($, cfg, log) {
                     for (const variable of vars) {
                         varvalue = parseInt($('#' + variable).html());
                         log.debug('replacing ' + variable + ' with ' + varvalue);
-                        formula.replace(variable, varvalue);
+                        formula = formula.replace(variable, varvalue);
                     }
                     log.debug('formula ' + formula);
                     var ratioresult = eval(formula);
