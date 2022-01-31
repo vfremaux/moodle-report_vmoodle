@@ -66,7 +66,7 @@ define(['jquery', 'core/config', 'core/log'], function ($, cfg, log) {
                     var formula = that.attr('data-formula');
                     var regexp = new RegExp('(sumator-[a-z]+)');
                     var vars = formula.match(regexp);
-                    for (var variable in vars) {
+                    for (const variable of vars) {
                         varvalue = parseInt($('#' + variable).html());
                         log.debug('replacing ' + variable + ' with ' + varvalue);
                         formula.replace(variable, varvalue);
