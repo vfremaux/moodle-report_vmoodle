@@ -73,7 +73,7 @@ define(['jquery', 'core/config', 'core/log'], function ($, cfg, log) {
                     }
                     log.debug('formula ' + formula);
                     var ratioresult = eval(formula);
-                    this.html('(' + ratioresult + '% )');
+                    that.html('(' + ratioresult + '% )');
                 })
             }, 'json');
         }
