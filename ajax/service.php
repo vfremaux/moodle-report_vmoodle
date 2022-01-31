@@ -41,7 +41,16 @@ switch ($action) {
         include_once($CFG->dirroot.'/local/vflibs/jqplotlib.php');
         $fragment = required_param('fragment', PARAM_TEXT);
         $hostroot = required_param('wwwroot', PARAM_TEXT);
-        $fragmentloader = report_vmoodle_get_fragment($fragment, $hostroot);
+        $filter = optional_param('filter', '', PARAM_TEXT);
+        $filterarr = [];
+        if (!empty($filter)) {
+            $filterparts = explode(';', $filter);
+            foreach ($filterparts as $part) {
+                list($key, $value) = explode('_', $part);
+                $filterarr[$key] = $value;
+            }
+        }
+        $fragmentloader = report_vmoodle_get_fragment($fragment, $hostroot, $filterarr);
 
         $response = new StdClass();
         $response->html = $fragmentloader->get_fragment($dataresults);

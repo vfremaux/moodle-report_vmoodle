@@ -220,10 +220,11 @@ function report_vmoodle_prepare_graph_structure($title) {
     );
 }
 
-function report_vmoodle_get_fragment($fragmentname, $hostorname) {
+function report_vmoodle_get_fragment($fragmentname, $hostorname, $filter = []) {
     global $CFG;
 
     include_once($CFG->dirroot.'/report/vmoodle/classes/fragments/'.$fragmentname.'.class.php');
     $classname = '\\report_vmoodle\\fragment\\'.$fragmentname;
-    return new $classname($hostorname);
+    // We use fragment loader options to pass query filter.
+    return new $classname($hostorname, ['filter' => $filter]);
 }

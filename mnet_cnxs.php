@@ -111,15 +111,15 @@ foreach ($vhosts as $vhost) {
     if ($SESSION->vmoodle_stat_distinct_users) {
         $sql = "
             SELECT
-                MONTH(FROM_UNIXTIME({$timefield})) as month,
+                CONCAT(MONTH(FROM_UNIXTIME({$timefield})), '-', MONTH(FROM_UNIXTIME({$timefield}))) as month,
                 COUNT(DISTINCT userid) as cnxs
             FROM
                 `{$vhost->vdbname}`.{$vhost->vdbprefix}{$logtable}
             WHERE
                 $actionclause
-                YEAR( FROM_UNIXTIME({$timefield})) = $year
+                $yearclause
             GROUP BY
-                MONTH( FROM_UNIXTIME({$timefield}))
+                YEAR( FROM_UNIXTIME({$timefield})), MONTH( FROM_UNIXTIME({$timefield}))
             ORDER BY
                 month
             ";

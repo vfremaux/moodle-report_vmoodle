@@ -44,7 +44,7 @@ if ($hassiteconfig) {
     $desc = get_string('configprofilefields_desc', 'report_vmoodle');
     $settings->add(new admin_setting_configtext($key, $label, $desc, ''));
 
-    $key = 'report_vmoodle/yearstart';
+    $key = 'report_vmoodle/shiftyearstart';
     $label = get_string('configyearstart', 'report_vmoodle');
     $desc = get_string('configyearstart_desc', 'report_vmoodle');
     $default = true;

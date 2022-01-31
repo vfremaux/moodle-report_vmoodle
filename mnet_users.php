@@ -33,9 +33,17 @@ if (!defined('MOODLE_INTERNAL')) {
 $config = get_config('report_vmoodle');
 $year = optional_param('year', 0, PARAM_INT);
 
-$firstaccessclause = '';
+$usercreationclause = '';
+$usercreationrange = '';
 if ($year && $year < 9000) {
-    $firstaccessclause = " AND YEAR(FROM_UNIXTIME(timecreated)) <= $year ";
+    $yearstart = mktime(0, 0, 0, 1, 1, $year);
+    $yearend = mktime(0, 0, 0, 1, 1, $year + 1) - 1;
+    if (!empty($config->shiftyearstart)) {
+        $yearstart = mktime(0, 0, 0, 9, 1, $year);
+        $yearend = mktime(0, 0, 0, 9, 1, $year + 1) - 1;
+    }
+    $usercreationclause = " AND timecreated >= $yearstart AND timecreated <= $yearend ";
+    $usercreationrange = ' ['.date('Y-m-d', $yearstart).' - '.date('Y-m-d', $yearend).']';
 }
 
 $totallocalusers = 0;
@@ -66,6 +74,7 @@ $table->align = array('left', 'center', 'center', 'center', 'center');
 $alllocals = 0;
 $allsuspendeds = 0;
 $allunconnected = 0;
+$allremotes = 0;
 for ($i = 0 ; $i < count($pfconfig) ; $i++) {
     $key = 'pfdata'.($i + 1);
     $$key = 0;
@@ -150,7 +159,7 @@ foreach ($vhosts as $vhost) {
         SELECT
             SUM(CASE WHEN u.suspended = 0 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as localusers,
             SUM(CASE WHEN u.suspended = 0 AND u.mnethostid != ".$localusershost." THEN 1 ELSE 0 END) as remoteusers,
-            SUM(CASE WHEN u.firstaccess = 0 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as localunconnected,
+            SUM(CASE WHEN u.firstaccess = 0 AND u.suspended = 0 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as localunconnected,
             SUM(CASE WHEN u.suspended = 1 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as suspendedusers
             $profilefields
         FROM
@@ -158,7 +167,7 @@ foreach ($vhosts as $vhost) {
             $profilejoins
         WHERE
             u.deleted = 0
-            $firstaccessclause
+            $usercreationclause
     ";
 
     $hoststats = $DB->get_records_sql($sql);
@@ -175,6 +184,7 @@ foreach ($vhosts as $vhost) {
             $row = array();
             $row[] = $renderer->host_full_name($vhost);
             $alllocals += $us->localusers;
+            $allremotes += $us->remoteusers;
             $localusers = $renderer->format_number($lus).' / '.$renderer->format_number($luu).' ('.$ratio.')';
             $data = array(array($cnxedstr, (int)$luc), array($uncnxedstr, (int)$luu));
             $attrs = array('height' => '150', 'width' => 150);
@@ -226,7 +236,7 @@ foreach ($vhosts as $vhost) {
 
 $str = '';
 
-$str .= $OUTPUT->heading(get_string('users', 'report_vmoodle'), 2);
+$str .= $OUTPUT->heading(get_string('usersinrange', 'report_vmoodle', $usercreationrange), 2);
 
 if (is_dir($CFG->dirroot.'/local/staticguitexts')) {
     $returnurl = new moodle_url('/admin/report/vmoodle/view.php', array('view' => 'users'));
@@ -241,20 +251,24 @@ if (empty($table->data)) {
 
     $totalratio = 0;
     if ($alllocals) {
-        $totalratio = sprintf('%.1f', (1 - $allunconnected / $alllocals) * 100).'%';
+        $totalratio = sprintf('%.1f', (1 - ($allunconnected / $alllocals)) * 100).'%';
     }
 
     $allconnected = $alllocals - $allunconnected;
-    $allusers = '<span id="sumator-locals">'.$alllocals.'</span> / <span id="sumator-localsunconnected">'.$allunconnected.'</span> (<span id="sumator-totalratio" >'.$totalratio.'</span>)';
+    $allusers = '<span id="sumator-localusers">'.$alllocals.'</span> / <span id="sumator-localsunconnected">'.$allunconnected.'</span> (<span id="sumator-totalratio" class="sumator-ratio" data-formula="100 - (sumator-localsunconnected / sumator-localusers * 100)">'.$totalratio.'</span>)';
+
+    // Note that sumators are initialized with the partial sum of amounts, and should be summed up with fragments.
+
     /*
     $data = array(array($cnxedstr, $allconnected), array($uncnxedstr, $allunconnected));
     $attrs = array('height' => '200', 'width' => 200);
     $allusers .= '<br/>'.local_vflibs_jqplot_simple_donut($data, 'total_'.$vhost->id.'_'.$i, 'report-vmoodle-user-charts', $attrs);
     */
-    $totalrow = array($totalstr, $allusers, '--', '<span id="sumator-suspendeds">'.$allsuspendeds.'</span>');
+
+    $totalrow = array($totalstr, $allusers, '<span id="sumator-remotes">'.$allremotes.'</span>', '<span id="sumator-suspendeds">'.$allsuspendeds.'</span>');
     for ($i = 0 ; $i < count($pfconfig) ; $i++) {
         $key = 'pfdata'.($i + 1);
-        $totalrow[] = $$key;
+        $totalrow[] = '<span id="sumator-'.$key.'">'.$$key.'</span>';
     }
     $table->data[] = $totalrow;
 

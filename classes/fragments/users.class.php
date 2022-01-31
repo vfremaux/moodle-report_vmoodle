@@ -39,7 +39,22 @@ class users extends base {
             $dataresult = new Stdclass;
         }
 
-        $firstaccessclause = '';
+        $config = get_config('report_vmoodle');
+
+        // Might come from fragment query "filter" attribute.
+        $year = @$this->options['filter']['year'];
+
+        $usercreationclause = '';
+        if (!empty($year) && $year < 9000) {
+            $yearstart = mktime(0, 0, 0, 1, 1, $year);
+            $yearend = mktime(0, 0, 0, 1, 1, $year + 1) - 1;
+            if (!empty($config->shiftyearstart)) {
+                $yearstart = mktime(0, 0, 0, 9, 1, $year);
+                $yearend = mktime(0, 0, 0, 9, 1, $year + 1) - 1;
+            }
+            $usercreationclause = " AND timecreated >= $yearstart AND timecreated <= $yearend ";
+        }
+
         $cnxedstr = get_string('cnxed', 'report_vmoodle');
         $uncnxedstr = get_string('uncnxed', 'report_vmoodle');
 
@@ -102,7 +117,7 @@ class users extends base {
                 $profilejoins
             WHERE
                 u.deleted = 0
-                $firstaccessclause
+                $usercreationclause
         ";
 
         $hoststats = $DB->get_records_sql($sql);
@@ -113,7 +128,7 @@ class users extends base {
                 $lus = $us->localusers;
                 $luu = $us->localunconnected;
                 $luc = $us->localusers - $us->localunconnected;
-                $ratio = sprintf('%.1f', $luc / $lus * 100).'%';
+                $ratio = ($lus == 0) ? 0 : sprintf('%.1f', $luc / $lus * 100).'%';
 
                 $row = new StdClass;
                 $row->hostname = $this->output->host_full_name($this->vhost->vhostname);
