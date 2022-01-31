@@ -73,7 +73,10 @@ define(['jquery', 'core/config', 'core/log'], function ($, cfg, log) {
                     }
                     log.debug('formula ' + formula);
                     var ratioresult = eval(formula);
-                    that.html('(' + ratioresult + '% )');
+                    that.html('(' + ratioresult.toLocaleString(undefined, { 
+  minimumFractionDigits: 2, 
+  maximumFractionDigits: 2 
+}) + '% )');
                 })
             }, 'json');
         }
