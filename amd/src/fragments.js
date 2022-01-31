@@ -55,7 +55,7 @@ define(['jquery', 'core/config', 'core/log'], function ($, cfg, log) {
                 for (var field in data.data) {
                     newval = parseInt($('#sumator-' + field).html());
                     log.debug('ADM Vmoodle updating field '+ field);
-                    log.debug('ADM orgin value '+ newval);
+                    log.debug('ADM origin value '+ newval);
                     $('#sumator-' + field).html(newval + parseInt(data.data[field]));
                 }
 
@@ -71,6 +71,7 @@ define(['jquery', 'core/config', 'core/log'], function ($, cfg, log) {
                         log.debug('replacing ' + variable + ' with ' + varvalue);
                         formula.replace(variable, varvalue);
                     }
+                    log.debug('formula ' + formula);
                     var ratioresult = eval(formula);
                     this.html('(' + ratioresult + '% )');
                 })
