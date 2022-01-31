@@ -64,7 +64,7 @@ define(['jquery', 'core/config', 'core/log'], function ($, cfg, log) {
                 $('.sumator-ratio').each(function() {
                     var that = $(this);
                     var formula = that.attr('data-formula');
-                    var regexp = new RegExp('(sumator-[a-z]+)');
+                    var regexp = new RegExp('(sumator-[a-z]+)', 'g');
                     var vars = formula.match(regexp);
                     for (const variable of vars) {
                         varvalue = parseInt($('#' + variable).html());
