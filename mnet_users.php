@@ -103,7 +103,7 @@ $table->data = null;
 
 foreach ($vhosts as $vhost) {
 
-    if ($output == 'html' && $counter >= $htmllimit && ($vhost->vhostname != $CFG->wwwroot)) {
+    if (($output == 'html') && ($counter >= $htmllimit) && ($vhost->vhostname != $CFG->wwwroot)) {
         // If over the fetchable limit, just print a delegated container.
         $delegated = new StdClass;
         $delegated->fragment = 'users';
@@ -124,7 +124,12 @@ foreach ($vhosts as $vhost) {
         WHERE
             shortname $insql
     ";
-    $fields = $DB->get_records_sql($sql, $inparams);
+    try {
+        $fields = $DB->get_records_sql($sql, $inparams);
+    } catch (Exception $ex) {
+        // Jump unreachable hosts.
+        continue;
+    }
 
     $sql = "
         SELECT
@@ -178,7 +183,7 @@ foreach ($vhosts as $vhost) {
             $lus = $us->localusers;
             $luu = $us->localunconnected;
             $luc = $us->localusers - $us->localunconnected;
-            $ratio = sprintf('%.1f', $luc / $lus * 100).'%';
+            $ratio = ($lus > 0) ? sprintf('%.1f', $luc / $lus * 100).'%' : 0;
 
             // HTML rendering.
             $row = array();

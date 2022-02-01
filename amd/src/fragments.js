@@ -27,7 +27,8 @@ define(['jquery', 'core/config', 'core/log'], function ($, cfg, log) {
 
             // Attach to each expected fragment slot an asynchronous loading.
             $('.delegated-content').each(function() {
-                $(this).promise().done(reportfragment.fragmentloader(this));
+                // $(this).promise().done(reportfragment.fragmentloader(this));
+                reportfragment.fragmentloader(this);
             });
 
             log.debug('ADM Vmoodle Report Report fragment initialized');
