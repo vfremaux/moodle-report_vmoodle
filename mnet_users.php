@@ -179,7 +179,11 @@ foreach ($vhosts as $vhost) {
         SELECT
             SUM(CASE WHEN u.suspended = 0 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as localusers,
             SUM(CASE WHEN u.suspended = 0 AND u.mnethostid != ".$localusershost." THEN 1 ELSE 0 END) as remoteusers,
+<<<<<<< HEAD
             SUM(CASE WHEN u.currentlogin = 0 AND u.suspended = 0 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as localunconnected,
+=======
+            SUM(CASE WHEN u.firstaccess = 0 AND u.suspended = 0 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as localunconnected,
+>>>>>>> 077c04281af0b5a48880bda171f8e2c2fbca87dd
             SUM(CASE WHEN u.suspended = 1 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as suspendedusers
             $profilefields
         FROM
@@ -206,7 +210,11 @@ foreach ($vhosts as $vhost) {
             $row[] = $renderer->host_full_name($vhost);
             $alllocals += $us->localusers;
             $allremotes += $us->remoteusers;
+<<<<<<< HEAD
             $localusers = $renderer->format_number($luc).' / '.$renderer->format_number($lus).' ('.$ratio.')';
+=======
+            $localusers = $renderer->format_number($lus).' / '.$renderer->format_number($luu).' ('.$ratio.')';
+>>>>>>> 077c04281af0b5a48880bda171f8e2c2fbca87dd
             $data = array(array($cnxedstr, (int)$luc), array($uncnxedstr, (int)$luu));
             $attrs = array('height' => '150', 'width' => 150);
             // $localusers .= '<br/>'.local_vflibs_jqplot_simple_donut($data, 'users_'.$vhost->id, 'report-vmoodle-user-charts', $attrs);
@@ -276,7 +284,11 @@ if (empty($table->data)) {
     }
 
     $allconnected = $alllocals - $allunconnected;
+<<<<<<< HEAD
     $allusers = '<span id="sumator-localusers">'.$alllocals.'</span> / <span id="sumator-localsunconnected">'.$allunconnected.'</span> (<span id="sumator-totalratio" class="sumator-ratio" data-formula="100 - (sumator-localsunconnected / sumator-localusers * 100)">'.$totalratio.'</span>)';
+=======
+    $allusers = '<span id="sumator-locals">'.$alllocals.'</span> / <span id="sumator-localsunconnected">'.$allunconnected.'</span> (<span id="sumator-totalratio" >'.$totalratio.'</span>)';
+>>>>>>> 077c04281af0b5a48880bda171f8e2c2fbca87dd
 
     // Note that sumators are initialized with the partial sum of amounts, and should be summed up with fragments.
 

@@ -19,12 +19,20 @@ cache:
     - $HOME/.npm
 
 php:
+<<<<<<< HEAD
  - 7.3
 
 env:
   global:
     - MOODLE_BRANCH=MOODLE_39_STABLE
     - PLUGINS_BRANCH=MOODLE_39_WORKING
+=======
+ - 7.1
+
+env:
+  global:
+    - MOODLE_BRANCH=MOODLE_36_STABLE
+>>>>>>> 077c04281af0b5a48880bda171f8e2c2fbca87dd
   matrix:
     - DB=mariadb
     - DB=pgsql

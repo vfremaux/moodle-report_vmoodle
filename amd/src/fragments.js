@@ -56,7 +56,11 @@ define(['jquery', 'core/config', 'core/log'], function ($, cfg, log) {
                 for (var field in data.data) {
                     newval = parseInt($('#sumator-' + field).html());
                     log.debug('ADM Vmoodle updating field '+ field);
+<<<<<<< HEAD
                     log.debug('ADM origin value '+ newval);
+=======
+                    log.debug('ADM orgin value '+ newval);
+>>>>>>> 077c04281af0b5a48880bda171f8e2c2fbca87dd
                     $('#sumator-' + field).html(newval + parseInt(data.data[field]));
                 }
 
