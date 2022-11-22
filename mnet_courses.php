@@ -35,21 +35,12 @@ $modecreatedbeforesel = ($mode == 1) ? 'checked="checked"' : '';
 
 $additionalinputs = ' <input type="radio" name="mode" value="0" '.$modecreatedsel.' />';
 $additionalinputs .= get_string('created', 'report_vmoodle');
-<<<<<<< HEAD
 
 $additionalinputs .= ' <input type="radio" name="mode" value="1" '.$modecreatedbeforesel.' />';
 $additionalinputs .= get_string('createdbefore', 'report_vmoodle');
 
 $str = '';
 $str .= $renderer->filter_form($additionalinputs);
-=======
-
-$additionalinputs .= ' <input type="radio" name="mode" value="1" '.$modecreatedbeforesel.' />';
-$additionalinputs .= get_string('createdbefore', 'report_vmoodle');
-
-echo $renderer->filter_form($additionalinputs);
-
->>>>>>> 077c04281af0b5a48880bda171f8e2c2fbca87dd
 
 $overall = 0 ;
 $totalstr = get_string('totalcourses', 'report_vmoodle');
@@ -60,13 +51,10 @@ $shortyearlytotalstr = get_string('totalyearlyshort', 'report_vmoodle');
 $stdresultarr = array();
 $headers = array($hostnamestr);
 $firstline = true;
-<<<<<<< HEAD
 $mstart = 1;
 if (!empty($config->shiftyearstart)) {
     $mstart = 9;
 }
-=======
->>>>>>> 077c04281af0b5a48880bda171f8e2c2fbca87dd
 
 $table = new html_table();
 $table->head = array($hostnamestr);
@@ -82,7 +70,6 @@ foreach ($vhosts as $vhost) {
     $row = array($renderer->host_full_name($vhost));
     $stdresult = array($renderer->host_full_name($vhost));
 
-<<<<<<< HEAD
     $hostyearly = 0;
     if ($courses) {
         $m = $mstart;
@@ -93,16 +80,6 @@ foreach ($vhosts as $vhost) {
                 $table->head[] = get_string(strtolower($month), 'report_vmoodle');
                 $headers[] = $month;
                 $m = ($m % 12) + 1;
-=======
-    $yearly = 0;
-    if ($courses) {
-        for ($m = 1 ; $m <= 12; $m++) {
-            if ($firstline) {
-                $dt = DateTime::createFromFormat('!m', $m);
-                $month = $dt->format('F');
-                $table->head[] = $month;
-                $headers[] = $month;
->>>>>>> 077c04281af0b5a48880bda171f8e2c2fbca87dd
             }
             $count = 0 + @$courses[$m]->coursecount;
             $hostyearly = $hostyearly + $count; // line aggregation.
@@ -120,13 +97,8 @@ foreach ($vhosts as $vhost) {
             $table->head[] = $yearlytotalstr;
             $headers[] = $yearlytotalstr;
         }
-<<<<<<< HEAD
         $row[] = $hostyearly;
         $stdresult[] = $hostyearly;
-=======
-        $row[] = $yearly;
-        $stdresult[] = $yearly;
->>>>>>> 077c04281af0b5a48880bda171f8e2c2fbca87dd
     }
 
     if ($firstline) {
@@ -137,7 +109,6 @@ foreach ($vhosts as $vhost) {
     $table->data[] = $row;
 }
 
-<<<<<<< HEAD
 // Per month overall sumators.
 $lastrow = [''];
 for ($i = 0 ; $i < 12; $i++) {
@@ -146,9 +117,6 @@ for ($i = 0 ; $i < 12; $i++) {
 $lastrow[] = $overall;
 $table->data[] = $lastrow;
 
-=======
-$str = '';
->>>>>>> 077c04281af0b5a48880bda171f8e2c2fbca87dd
 $str .= $OUTPUT->heading(get_string('courses'));
 
 if (is_dir($CFG->dirroot.'/local/staticguitexts')) {
