@@ -50,7 +50,6 @@ class report_vmoodle_renderer extends plugin_renderer_base {
                                'blocks',
                                'courses',
                                'formats',
-                               'assignmenttypes',
                                'questiontypes',
                                'resourcetypes',
                                'sharedresources',
@@ -91,8 +90,6 @@ class report_vmoodle_renderer extends plugin_renderer_base {
         $rows[0][] = new tabobject('blocks', $taburl, get_string('blocks', 'report_vmoodle'));
         $taburl = new moodle_url('/report/vmoodle/view.php', array('view' => 'formats'));
         $rows[0][] = new tabobject('formats', $taburl, get_string('formats', 'report_vmoodle'));
-        $taburl = new moodle_url('/report/vmoodle/view.php', array('view' => 'assignmenttypes'));
-        $rows[0][] = new tabobject('assignmenttypes', $taburl, get_string('assignmenttypes', 'report_vmoodle'));
         $taburl = new moodle_url('/report/vmoodle/view.php', array('view' => 'questiontypes'));
         $rows[0][] = new tabobject('questiontypes', $taburl, get_string('questiontypes', 'report_vmoodle'));
         $taburl = new moodle_url('/report/vmoodle/view.php', array('view' => 'resourcetypes'));
@@ -212,34 +209,34 @@ class report_vmoodle_renderer extends plugin_renderer_base {
 
     public function filter_form($additionalinputs = '', $allyears = true) {
 
+        $config = get_config('report_vmoodle');
+
         $currentyear = date('Y');
+        if (!empty($config->shiftstartyear) && date('m') <= 8) {
+            $currentyear--;
+        }
+
         $year = optional_param('year', $currentyear, PARAM_INT);
         $view = optional_param('view', 'cnxs', PARAM_TEXT);
 
         $template = new StdClass;
 
-        $config = get_config('report_vmoodle');
+        $template->additionalinputs = $additionalinputs;
+        $template->view = $view;
 
-        $hasoptions;
+        if ($allyears) {
+            $years[9999] = get_string('allyears', 'report_vmoodle');
+        }
         if (!empty($config->backexploredepth)) {
             $startyear = $currentyear - $config->backexploredepth;
             for ($i = 0 ; $i <= $config->backexploredepth ; $i++) {
                 $years[$startyear + $i] = $startyear + $i;
             }
-
-            $template->additionalinputs = $additionalinputs;
-            $template->view = $view;
-            if ($allyears) {
-                $years[9999] = get_string('allyears', 'report_vmoodle');
-            }
-            $template->yearselect = html_writer::select($years, 'year', $year, array());
-            $hasoptions = true;
         }
+        $template->yearselect = html_writer::select($years, 'year', $year, array());
 
-        if ($hasoptions || !empty($additionalinputs)) {
-            $template->gostr = get_string('apply', 'report_vmoodle');
-            return $this->output->render_from_template('report_vmoodle/filterform', $template);
-        }
+        $template->gostr = get_string('apply', 'report_vmoodle');
+        return $this->output->render_from_template('report_vmoodle/filterform', $template);
     }
 
     public function graphcontrol_button() {
@@ -252,7 +249,7 @@ class report_vmoodle_renderer extends plugin_renderer_base {
 
     /**
      * Given an html table standard structure, renderers specially the table with delegated row containers.
-     * It amits that the data[] value array contain empty arrays for which a row empty container will
+     * It omits that the data[] value array contain empty arrays for which a row empty container will
      * be printed.
      * We expect the data being a table of objects giving ajax delegation information. We may allow
      * some rows being real data array, in which case they will be printed the same way than the standard
@@ -323,9 +320,12 @@ class report_vmoodle_renderer extends plugin_renderer_base {
                 $rowcontent = '';
                 $delegationattrs = ' delegated-fragment="'.$table->data[$i]->fragment.'"';
                 $delegationattrs .= ' delegated-context="'.urlencode($table->data[$i]->contextstring).'"';
-                $str .= '<tr class="delegated-content '.$class.'" '.$delegationattrs.'" ></tr>';
+                if ($year = optional_param('year', false, PARAM_INT)) {
+                    $delegationattrs .= ' delegated-filter="year_'.$year.'"';
+                }
+                $str .= '<tr class="delegated-content '.$class.'" '.$delegationattrs.' ></tr>';
             } else {
-                $str .= '<tr class="'.$class.'" >';
+                $str .= '<tr class="undelegated '.$class.'" >';
                 for ($j = 0; $j < $maxcol; $j++) {
                     $align = 'leftalign';
                     if (!empty($table->align[$j])) {

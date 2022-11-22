@@ -25,26 +25,9 @@ defined('MOODLE_INTERNAL') || die;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-$hasconfig = false;
-$hassiteconfig = false;
-if (is_dir($CFG->dirroot.'/local/adminsettings')) {
-    // Integration driven code 
-    if (has_capability('local/adminsettings:nobody', context_system::instance())) {
-        $hasconfig = true;
-        $hassiteconfig = true;
-    } elseif (has_capability('moodle/site:config', context_system::instance())) {
-        $hasconfig = true;
-        $hassiteconfig = false;
-    }
-} else {
-    // Standard Moodle code
-    $hassiteconfig = true;
-    $hasconfig = true;
-}
-
 // Liberalize the access.
 // Each local instance should see only his own data.
-if ($hasconfig) {
+if (!empty($hasconfig) || $hassiteconfig) {
     $ADMIN->add('reports', new admin_externalpage('reportvmoodleext', get_string('pluginname', 'report_vmoodle'), "$CFG->wwwroot/report/vmoodle/view.php", 'moodle/site:config'));
 }
 
@@ -60,4 +43,10 @@ if ($hassiteconfig) {
     $label = get_string('configprofilefields', 'report_vmoodle');
     $desc = get_string('configprofilefields_desc', 'report_vmoodle');
     $settings->add(new admin_setting_configtext($key, $label, $desc, ''));
+
+    $key = 'report_vmoodle/shiftyearstart';
+    $label = get_string('configyearstart', 'report_vmoodle');
+    $desc = get_string('configyearstart_desc', 'report_vmoodle');
+    $default = true;
+    $settings->add(new admin_setting_configcheckbox($key, $label, $desc, $default));
 }

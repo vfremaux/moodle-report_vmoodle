@@ -27,7 +27,8 @@ define(['jquery', 'core/config', 'core/log'], function ($, cfg, log) {
 
             // Attach to each expected fragment slot an asynchronous loading.
             $('.delegated-content').each(function() {
-                $(this).promise().done(reportfragment.fragmentloader(this));
+                // $(this).promise().done(reportfragment.fragmentloader(this));
+                reportfragment.fragmentloader(this);
             });
 
             log.debug('ADM Vmoodle Report Report fragment initialized');
@@ -44,16 +45,40 @@ define(['jquery', 'core/config', 'core/log'], function ($, cfg, log) {
             url += '?what=getfragment';
             url += '&fragment=' + that.attr('delegated-fragment');
             url += '&wwwroot=' + that.attr('delegated-context');
+            url += '&filter=' + that.attr('delegated-filter');
 
             $.get(url, function(data) {
+                var newval;
                 log.debug('Feeding '+'tr[delegated-context="' + data.source + '"]');
                 $('tr[delegated-context="' + data.source + '"]').html(data.html);
 
                 // find sumators and add results in it.
                 for (var field in data.data) {
-                    var newval = parseInt($('#sumator-' + field).html());
-                    $('#sumator-' + field).html(newval + data.data.field);
+                    newval = parseInt($('#sumator-' + field).html());
+                    log.debug('ADM Vmoodle updating field '+ field);
+                    log.debug('ADM origin value '+ newval);
+                    $('#sumator-' + field).html(newval + parseInt(data.data[field]));
                 }
+
+                // sumator-ratios provide formula to refresh their values.
+                // formulas contain non terminal references to sumators ids.
+                $('.sumator-ratio').each(function() {
+                    var that = $(this);
+                    var formula = that.attr('data-formula');
+                    var regexp = new RegExp('(sumator-[a-z]+)', 'g');
+                    var vars = formula.match(regexp);
+                    for (const variable of vars) {
+                        varvalue = parseInt($('#' + variable).html());
+                        log.debug('replacing ' + variable + ' with ' + varvalue);
+                        formula = formula.replace(variable, varvalue);
+                    }
+                    log.debug('formula ' + formula);
+                    var ratioresult = eval(formula);
+                    that.html(ratioresult.toLocaleString(undefined, { 
+  minimumFractionDigits: 2, 
+  maximumFractionDigits: 2 
+}) + '%');
+                })
             }, 'json');
         }
     };

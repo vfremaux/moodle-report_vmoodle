@@ -19,122 +19,133 @@ defined('MOODLE_INTERNAL') || die();
 /**
  * Version info
  *
- * @package    report_vmoodle
- * @category   report
- * @copyright  2012 Valery Fremaux
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @package     report_vmoodle
+ * @category    report
+ * @copyright   2012 Valery Fremaux
+ * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-$year = optional_param('year', 0, PARAM_INT); 
-
-$str = '';
-$str .= '<form name="chooseyearform">';
-$years[] = get_string('whenever', 'report_vmoodle');
-for ($i = 0 ; $i < 15 ; $i++) {
-    $years[2009 + $i] = 2009 + $i;
-}
-
-$str .= get_string('addeddate', 'report_vmoodle');
-$str .= html_writer::select($years, 'year', $year, array());
-$gostr = get_string('apply', 'report_vmoodle');
-$str .= ' <input type="hidden" name="view" value="blocks" />';
-$str .= ' <input type="submit" value="'.$gostr.'" />';
-$str .= '</form>';
-
-$str .= $OUTPUT->heading(get_string('blocks', 'report_vmoodle'), 2);
-
-if (is_dir($CFG->dirroot.'/local/staticguitexts')) {
-    $str .= local_print_static_text('static_vmoodle_report_blocks', $CFG->wwwroot.'/admin/report/vmoodle/view.php', '', true);
-}
-
-$str .= '<table width="100%"><tr>';
-
-$col = 0;
 $overall = 0 ;
-$totalstr = get_string('totalblocks', 'report_vmoodle');
 $allnodesstr = get_string('allnodes', 'report_vmoodle');
-$networktotalstr = get_string('networktotal', 'report_vmoodle');
+$hostnamestr = get_string('hostname', 'report_vmoodle');
 
-$yearclause = '';
-if (!empty($year)) {
-    $yearclause = " AND YEAR( FROM_UNIXTIME(c.timecreated)) = $year ";
-}
+$stdresultarr = array();
 
+$table = new html_table();
+$table->head = array($hostnamestr);
+$table->size = array('25%');
+$table->align = array('left');
+$table->width = '95%';
+
+$maxscale = 0;
+$blocknames = array();
 foreach ($vhosts as $vhost) {
-    $totblocks = 0;
-    $str .= '<td valign="top">';
+
+    $totmodules = 0;
     $sql = "
         SELECT
-            bi.blockname,
+            b.name as blockname,
+            b.visible as visible,
             COUNT(*) as blockcount
         FROM
-            `{$vhost->vdbname}`.{$vhost->vdbprefix}block_instances bi,
-            `{$vhost->vdbname}`.{$vhost->vdbprefix}context co,
-            `{$vhost->vdbname}`.{$vhost->vdbprefix}course c
-        WHERE
-            bi.parentcontextid = co.id AND
-            co.contextlevel = 50 AND
-            co.instanceid = c.id
-            $yearclause
-        GROUP
-            BY blockname
+            `{$vhost->vdbname}`.{$vhost->vdbprefix}block b
+        LEFT JOIN
+            `{$vhost->vdbname}`.{$vhost->vdbprefix}block_instances bi
+        ON
+            bi.blockname = b.name
+        GROUP BY
+            blockname
         ORDER BY
             blockname
     ";
 
-    $str .= '<table width="100%" class="generaltable">';
-    $str .= '<tr><th colspan="2" class="header c0 report-vmoodle" >'.$vhost->name.'</th></tr>';
-
-    $stdresultarr = array();
-
-    $r = 0;
-    if ($blockss = $DB->get_records_sql($sql)) {
-        foreach ($blockss as $b) {
-            $blockname = get_string('pluginname', 'block_'.$b->blockname);
-            if (strpos($blockname, '[[') !== false) {
-                $blockname = get_string($b->blockname, 'block_'.$blockname);
+    if ($modules = $DB->get_records_sql($sql)) {
+        foreach ($modules as $b) {
+            if (!in_array($b->blockname, $blocknames)) {
+                $blocknames[] = $b->blockname;
+                $blocks[$b->blockname] = $b;
             }
-            if (strpos($blockname, '[[') !== false) {
-                $blockname = $b->blockname;
-            }
-            $str .= '<tr class="row r'.$r.'"><td width="80%" class="cell c0 report-vmoodle">'.$blockname.'</td><td width="20%" class="cell c1 report-vmoodle">'.$b->blockcount.'</td></tr>';
-            $totblocks = 0 + $b->blockcount + @$totblocks;
             $allnodes[$b->blockname] = 0 + $b->blockcount + @$allnodes[$b->blockname];
-            $r = ($r + 1) % 2;
-            $stdresultarr[] = array($vhost->name, ($year) ? $year : get_string('whenever', 'report_vmoodle'), $blockname, $b->blockcount);
+            $hostmodules[$vhost->vhostname][$b->blockname] = $b->blockcount;
+            if ($b->blockcount > $maxscale) {
+                $maxscale = $b->blockcount;
+            }
         }
     }
-    $str .= '<tr class="row r'.$r.'"><td width="80%" class="cell c0">'.$totalstr.'</td><td width="20%" class="cell c1 report-vmoodle">'.$totblocks.'</td></tr>';
-    $str .= '</table></td>';
-
-    $col++;
-    if ($col >= 4) {
-        $str .= '</tr><tr>';
-        $col = 0;
-    }
 }
 
-$str .= '</tr></table>';
-
-$str .= $OUTPUT->heading(get_string('totalblocksuses', 'report_vmoodle'), 2);
-
-$str .= '<table width="250" class="generaltable">';
-$str .= '<tr><th colspan="2" class="header c0 report-vmoodle">'.$allnodesstr.'</th></tr>';
-
-$r = 0;
-$nettotal = 0;
-foreach ($allnodes as $bname => $blockcount) {
-    $blockname = get_string('pluginname', 'block_'.$bname);
-    if (strpos($blockname, '[[') !== false) {
-        $blockname = get_string($bname, 'block_'.$bname);
+foreach ($blocknames as $bn) {
+    if (!is_dir($CFG->dirroot.'/blocks/'.$bn)) {
+        // Care about uninstalled modules.
+        continue;
     }
-    if (strpos($blockname, '[[') !== false) {
-        $blockname = $bname;
-    }
-    $str .= '<tr class="row r'.$r.'"><td class="cell c0 report-vmoodle">'.$blockname.'</td><td class="cell c1 report-vmoodle">'.$blockcount.'</td></tr>';
-    $nettotal = 0 + $blockcount + @$nettotal;
-    $r = ($r + 1) % 2;
+    $fullblocknames[$bn] = get_string('pluginname', 'block_'.$bn);
+    $blockicons[$bn] = $OUTPUT->pix_icon('icon', $fullblocknames[$bn], $bn, array('width' => '32px', 'height' => '32px'));
 }
 
-$str .= '<tr class="row r'.$r.'"><td class="cell c0 report-vmoodle">'.$networktotalstr.'</td><td class="cell c1 report-vmoodle">'.$nettotal.'</td></tr>';
-$str .= '</table></td>';
+asort($fullblocknames);
+
+foreach ($fullblocknames as $bn => $fullblockname) {
+    $table->head[] = $blockicons[$bn];
+    $table->align[] = 'center';
+    $table->size[] = '5%';
+}
+
+$headers = array('host');
+$firstline = true;
+
+foreach ($vhosts as $vhost) {
+
+    $stdresult = array($vhost->vhostname);
+
+    $row = array();
+    $row[] = $renderer->host_full_name($vhost);
+    foreach ($fullblocknames as $bn => $fullblockname) {
+        if ($firstline) {
+            $headers[] = $bn;
+        }
+        if (!empty($hostmodules[$vhost->vhostname][$bn])) {
+            $stdresult[] = $hostmodules[$vhost->vhostname][$bn];
+            $html = $renderer->format_number($hostmodules[$vhost->vhostname][$bn]);
+            $graphratio = round(log($hostmodules[$vhost->vhostname][$bn]) * 10) + 1;
+            $html .= '<br/>';
+            if ($blocks[$bn]->visible) {
+                $html .= $OUTPUT->pix_icon('bluecircle', '', 'report_vmoodle', array('width' => $graphratio, 'height' => $graphtratio));
+            } else {
+                $html .= $OUTPUT->pix_icon('redcircle', '', 'report_vmoodle', array('width' => $graphratio, 'height' => $graphtratio));
+            }
+            $row[] = $html;
+        } else {
+            $stdresult[] = 0;
+            $row[] = $renderer->format_number(0);
+        }
+
+    }
+    if ($firstline) {
+        $headerarr[] = $headers;
+    }
+    $stdresultarr[] = $stdresult;
+    $firstline = false;
+    $table->data[] = $row;
+}
+
+$totalrow = array();
+$totalrow[] = $allnodesstr;
+foreach ($fullblocknames as $bn => $fullblockname) {
+    if (!empty($allnodes[$bn])) {
+        $totalrow[] = $renderer->format_number($allnodes[$bn]);
+    } else {
+        $totalrow[] = $renderer->format_number(0);
+    }
+}
+$table->data[] = $totalrow;
+
+$str .= $OUTPUT->heading(get_string('blocks', 'report_vmoodle'), 2);
+
+if (is_dir($CFG->dirroot.'/local/staticguitexts')) {
+    $returnurl = new moodle_url('/admin/report/vmoodle/view.php', array('view' => 'modules'));
+    $str .= local_print_static_text('static_vmoodle_report_modules', $returnurl, '', true);
+}
+
+$str .= html_writer::table($table);
+

@@ -118,7 +118,7 @@ $table->size = array('50%', '30%', '20%');
 $table->width = '95%';
 
 foreach ($vhosts as $vhost) {
-    $vhostname = report_vmoodle_get_full_name($vhost);;
+    $vhostname = $renderer->host_full_name($vhost);
     $table->data[] = array($vhostname, $vhost->vhostname, $logtotals[$vhost->name]);
 }
 

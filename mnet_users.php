@@ -33,9 +33,17 @@ if (!defined('MOODLE_INTERNAL')) {
 $config = get_config('report_vmoodle');
 $year = optional_param('year', 0, PARAM_INT);
 
-$firstaccessclause = '';
+$userpresentclause = '';
+$usercreationrange = '';
 if ($year && $year < 9000) {
-    $firstaccessclause = " AND YEAR(FROM_UNIXTIME(timecreated)) <= $year ";
+    $yearstart = mktime(0, 0, 0, 1, 1, $year);
+    $yearend = mktime(0, 0, 0, 1, 1, $year + 1) - 1;
+    if (!empty($config->shiftyearstart)) {
+        $yearstart = mktime(0, 0, 0, 9, 1, $year);
+        $yearend = mktime(0, 0, 0, 9, 1, $year + 1) - 1;
+    }
+    $userpresentclause = " AND currentlogin >= $yearstart AND currentlogin <= $yearend ";
+    $usercreationrange = ' ['.date('Y-m-d', $yearstart).' - '.date('Y-m-d', $yearend).']';
 }
 
 $totallocalusers = 0;
@@ -47,6 +55,7 @@ $externalstr = get_string('remotes', 'report_vmoodle');
 $deletedstr = get_string('deleted');
 $suspendedstr =  get_string('suspended');
 $unconnectedstr =  get_string('neverconnected', 'report_vmoodle');
+$connectedstr =  get_string('connected', 'report_vmoodle');
 $cnxratiostr =  get_string('cnxratio', 'report_vmoodle');
 $totalstr = get_string('totalusers', 'report_vmoodle');
 $cnxedstr = get_string('cnxed', 'report_vmoodle');
@@ -56,8 +65,8 @@ $pfconfig = explode(',', $config->profilefields);
 $widthincr = floor(80 / (count($pfconfig) + 3));
 
 $table = new html_table();
-$uncextstr = ' / '.$unconnectedstr.'<br>'.$cnxratiostr;
-$table->head = array($hostnamestr, $internalstr.$uncextstr, $externalstr, $suspendedstr);
+$cextstr = $connectedstr.' / '.$internalstr.'<br>'.$cnxratiostr;
+$table->head = array($hostnamestr, $cextstr, $externalstr, $suspendedstr);
 $table->xlshead = array($hostnamestr, $internalstr, $unconnectedstr, $externalstr, $suspendedstr);
 $table->size = array('20%', $widthincr, $widthincr, $widthincr, $widthincr);
 $table->width = '95%';
@@ -66,6 +75,7 @@ $table->align = array('left', 'center', 'center', 'center', 'center');
 $alllocals = 0;
 $allsuspendeds = 0;
 $allunconnected = 0;
+$allremotes = 0;
 for ($i = 0 ; $i < count($pfconfig) ; $i++) {
     $key = 'pfdata'.($i + 1);
     $$key = 0;
@@ -94,7 +104,7 @@ $table->data = null;
 
 foreach ($vhosts as $vhost) {
 
-    if ($output == 'html' && $counter >= $htmllimit && ($vhost->vhostname != $CFG->wwwroot)) {
+    if (($output == 'html') && ($counter >= $htmllimit) && ($vhost->vhostname != $CFG->wwwroot)) {
         // If over the fetchable limit, just print a delegated container.
         $delegated = new StdClass;
         $delegated->fragment = 'users';
@@ -115,7 +125,12 @@ foreach ($vhosts as $vhost) {
         WHERE
             shortname $insql
     ";
-    $fields = $DB->get_records_sql($sql, $inparams);
+    try {
+        $fields = $DB->get_records_sql($sql, $inparams);
+    } catch (Exception $ex) {
+        // Jump unreachable hosts.
+        continue;
+    }
 
     $sql = "
         SELECT
@@ -127,6 +142,14 @@ foreach ($vhosts as $vhost) {
     ";
     $localusershost = $DB->get_field_sql($sql);
 
+    $millesimclause = '';
+    if (!is_dir($CFG->dirroot.'/local/ent_installer')) {
+        $cohortfield = $DB->get_record('user_info_field', ['shortname' => 'cohort']);
+        $millesim = get_config('local_ent_installer', 'cohort_ix');
+        // Check for users having a matching millesim or no millesim at all (non students)
+        $millesimclause = ' AND cf.data LIKE "'.$millesim.'%" OR cf.data = "" OR cf.data IS NULL ';
+    }
+
     $profilefields = '';
     $profilejoins = '';
     $joinwheres = '';
@@ -134,7 +157,7 @@ foreach ($vhosts as $vhost) {
         $i = 1;
         foreach ($fields as $field) {
             $profilefields .= ', SUM(CASE WHEN pf'.$i.'.data IS NOT NULL AND pf'.$i.'.data > 0 THEN 1 ELSE 0 END) as pfdata'.$i."\n";
-            $profilefields .= ', SUM(CASE WHEN u.firstaccess = 0 AND
+            $profilefields .= ', SUM(CASE WHEN u.currentlogin = 0 AND
                                                u.mnethostid = '.$localusershost.' AND
                                                pf'.$i.'.data IS NOT NULL AND
                                                pf'.$i.'.data > 0 THEN 1 ELSE 0 END) as pfdata'.$i.'unc';
@@ -144,13 +167,19 @@ foreach ($vhosts as $vhost) {
 
             $i++;
         }
+
+        // Add ENT_INSTALLER millesim check.
+        if (!is_dir($CFG->dirroot.'/local/ent_installer')) {
+            $joinwheres = ' ON pf'.$i.'.userid = u.id AND cf.fieldid = '.$cohortfield->id;
+            $profilejoins .= " LEFT JOIN `{$vhost->vdbname}`.{$vhost->vdbprefix}user_info_data as cf ".$joinwheres;
+        }
     }
 
     $sql = "
         SELECT
             SUM(CASE WHEN u.suspended = 0 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as localusers,
             SUM(CASE WHEN u.suspended = 0 AND u.mnethostid != ".$localusershost." THEN 1 ELSE 0 END) as remoteusers,
-            SUM(CASE WHEN u.firstaccess = 0 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as localunconnected,
+            SUM(CASE WHEN u.currentlogin = 0 AND u.suspended = 0 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as localunconnected,
             SUM(CASE WHEN u.suspended = 1 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as suspendedusers
             $profilefields
         FROM
@@ -158,7 +187,8 @@ foreach ($vhosts as $vhost) {
             $profilejoins
         WHERE
             u.deleted = 0
-            $firstaccessclause
+            $userpresentclause
+            $millesimclause
     ";
 
     $hoststats = $DB->get_records_sql($sql);
@@ -169,16 +199,17 @@ foreach ($vhosts as $vhost) {
             $lus = $us->localusers;
             $luu = $us->localunconnected;
             $luc = $us->localusers - $us->localunconnected;
-            $ratio = sprintf('%.1f', $luc / $lus * 100).'%';
+            $ratio = ($lus > 0) ? sprintf('%.1f', $luc / $lus * 100).'%' : 0;
 
             // HTML rendering.
             $row = array();
             $row[] = $renderer->host_full_name($vhost);
             $alllocals += $us->localusers;
-            $localusers = $renderer->format_number($lus).' / '.$renderer->format_number($luu).' ('.$ratio.')';
+            $allremotes += $us->remoteusers;
+            $localusers = $renderer->format_number($luc).' / '.$renderer->format_number($lus).' ('.$ratio.')';
             $data = array(array($cnxedstr, (int)$luc), array($uncnxedstr, (int)$luu));
             $attrs = array('height' => '150', 'width' => 150);
-            $localusers .= '<br/>'.local_vflibs_jqplot_simple_donut($data, 'users_'.$vhost->id, 'report-vmoodle-user-charts', $attrs);
+            // $localusers .= '<br/>'.local_vflibs_jqplot_simple_donut($data, 'users_'.$vhost->id, 'report-vmoodle-user-charts', $attrs);
             $row[] = $localusers;
             $row[] = $renderer->format_number($us->remoteusers);
             $row[] = $renderer->format_number($us->suspendedusers);
@@ -196,7 +227,7 @@ foreach ($vhosts as $vhost) {
                 $value = $renderer->format_number($pfu).' / '.$renderer->format_number($pfunc).' ('.sprintf('%.1f', $ratio).'%)';
                 $data = array(array($cnxedstr, $pfu - $pfunc), array($uncnxedstr, $pfunc));
                 $attrs = array('height' => '150', 'width' => 150);
-                $value .= '<br/>'.local_vflibs_jqplot_simple_donut($data, 'field_'.$vhost->id.'_'.$i, 'report-vmoodle-user-charts', $attrs);
+                // $value .= '<br/>'.local_vflibs_jqplot_simple_donut($data, 'field_'.$vhost->id.'_'.$i, 'report-vmoodle-user-charts', $attrs);
                 $row[] = $value;
                 $$key += @$us->$key;
             }
@@ -226,7 +257,7 @@ foreach ($vhosts as $vhost) {
 
 $str = '';
 
-$str .= $OUTPUT->heading(get_string('users', 'report_vmoodle'), 2);
+$str .= $OUTPUT->heading(get_string('usersinrange', 'report_vmoodle', $usercreationrange), 2);
 
 if (is_dir($CFG->dirroot.'/local/staticguitexts')) {
     $returnurl = new moodle_url('/admin/report/vmoodle/view.php', array('view' => 'users'));
@@ -241,20 +272,24 @@ if (empty($table->data)) {
 
     $totalratio = 0;
     if ($alllocals) {
-        $totalratio = sprintf('%.1f', (1 - $allunconnected / $alllocals) * 100).'%';
+        $totalratio = sprintf('%.1f', (1 - ($allunconnected / $alllocals)) * 100).'%';
     }
 
     $allconnected = $alllocals - $allunconnected;
-    $allusers = '<span id="sumator-locals">'.$alllocals.'</span> / <span id="sumator-localsunconnected">'.$allunconnected.'</span> (<span id="sumator-totalratio" >'.$totalratio.'</span>)';
+    $allusers = '<span id="sumator-localusers">'.$alllocals.'</span> / <span id="sumator-localsunconnected">'.$allunconnected.'</span> (<span id="sumator-totalratio" class="sumator-ratio" data-formula="100 - (sumator-localsunconnected / sumator-localusers * 100)">'.$totalratio.'</span>)';
+
+    // Note that sumators are initialized with the partial sum of amounts, and should be summed up with fragments.
+
     /*
     $data = array(array($cnxedstr, $allconnected), array($uncnxedstr, $allunconnected));
     $attrs = array('height' => '200', 'width' => 200);
     $allusers .= '<br/>'.local_vflibs_jqplot_simple_donut($data, 'total_'.$vhost->id.'_'.$i, 'report-vmoodle-user-charts', $attrs);
     */
-    $totalrow = array($totalstr, $allusers, '--', '<span id="sumator-suspendeds">'.$allsuspendeds.'</span>');
+
+    $totalrow = array($totalstr, $allusers, '<span id="sumator-remotes">'.$allremotes.'</span>', '<span id="sumator-suspendeds">'.$allsuspendeds.'</span>');
     for ($i = 0 ; $i < count($pfconfig) ; $i++) {
         $key = 'pfdata'.($i + 1);
-        $totalrow[] = $$key;
+        $totalrow[] = '<span id="sumator-'.$key.'">'.$$key.'</span>';
     }
     $table->data[] = $totalrow;
 

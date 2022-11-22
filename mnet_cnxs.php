@@ -28,7 +28,46 @@ require_once($CFG->dirroot.'/report/vmoodle/locallib.php');
 require_once($CFG->dirroot.'/local/vflibs/jqplotlib.php');
 local_vflibs_require_jqplot_libs();
 
+$config = get_config('report_vmoodle');
+
+$logmanager = get_log_manager();
+$readers = $logmanager->get_readers('\core\log\sql_reader');
+$reader = reset($readers);
+
+if (empty($reader)) {
+    $str .= $OUTPUT->notification(get_string('nologreader', 'report_vmoodle'));
+    return false; // No log reader found.
+}
+
+if ($reader instanceof \logstore_standard\log\store) {
+    $loginaction = 'loggedin';
+    $timefield = 'timecreated';
+    $logtable = 'logstore_standard_log';
+} else if ($reader instanceof \logstore_legacy\log\store) {
+    $loginaction = 'login';
+    $logtable = 'log';
+    $timefield = 'time';
+} else {
+    $class = get_class($reader);
+    $str .= $OUTPUT->notification(get_string('nologstore', 'report_vmoodle', $class));
+    return;
+}
+
 $year = optional_param('year', date('Y'), PARAM_INT);
+$timeclause = '';
+$timerange = '';
+if ($year && $year < 9000) {
+    $yearstart = mktime(0, 0, 0, 1, 1, $year);
+    $yearend = mktime(0, 0, 0, 1, 1, $year + 1) - 1;
+    if (!empty($config->shiftyearstart)) {
+        $yearstart = mktime(0, 0, 0, 9, 1, $year);
+        $yearend = mktime(0, 0, 0, 9, 1, $year + 1) - 1;
+    }
+    $timeclause = " AND $timefield >= $yearstart AND $timefield <= $yearend ";
+    $timerange = ' ['.date('Y-m-d', $yearstart).' - '.date('Y-m-d', $yearend).']';
+}
+
+
 $SESSION->vmoodle_stat_distinct_users = optional_param('distinctusers', @$SESSION->vmoodle_stat_distinct_users, PARAM_INT);
 $SESSION->vmoodle_stat_allhits = optional_param('allhits', @$SESSION->vmoodle_stat_allhits, PARAM_INT);
 
@@ -54,52 +93,38 @@ if (is_dir($CFG->dirroot.'/local/staticguitexts')) {
     $str .= local_print_static_text('static_vmoodle_report_general', $CFG->wwwroot.'/admin/report/vmoodle/view.php', '', true);
 }
 
-$logmanager = get_log_manager();
-$readers = $logmanager->get_readers('\core\log\sql_reader');
-$reader = reset($readers);
-
-if (empty($reader)) {
-    $str .= $OUTPUT->notification(get_string('nologreader', 'report_vmoodle'));
-    return false; // No log reader found.
-}
-
-if ($reader instanceof \logstore_standard\log\store) {
-    $loginaction = 'loggedin';
-    $timefield = 'timecreated';
-    $logtable = 'logstore_standard_log';
-} else if ($reader instanceof \logstore_legacy\log\store) {
-    $loginaction = 'login';
-    $logtable = 'log';
-    $timefield = 'time';
-} else {
-    $class = get_class($reader);
-    $str .= $OUTPUT->notification(get_string('nologstore', 'report_vmoodle', $class));
-    return;
-}
-
 $stdresultarr = array();
 $col = 0;
 $overall = 0;
 $yearlytotalstr = get_string('totalyearly', 'report_vmoodle');
 $shortyearlytotalstr = get_string('totalyearlyshort', 'report_vmoodle');
-$actionclause = (@$SESSION->vmoodle_stat_allhits) ? '' : " action = '{$loginaction}' AND ";
+$actionclause = (@$SESSION->vmoodle_stat_allhits) ? ' 1 = 1 ' : " action = '{$loginaction}' ";
 
 $hostnamestr = get_string('hostname', 'report_vmoodle');
-$jan = get_string('january', 'report_vmoodle');
-$feb = get_string('february', 'report_vmoodle');
-$mar = get_string('march', 'report_vmoodle');
-$apr = get_string('april', 'report_vmoodle');
-$jun = get_string('june', 'report_vmoodle');
-$jul = get_string('july', 'report_vmoodle');
-$aug = get_string('august', 'report_vmoodle');
-$sep = get_string('september', 'report_vmoodle');
-$oct = get_string('october', 'report_vmoodle');
-$nov = get_string('november', 'report_vmoodle');
-$dec = get_string('december', 'report_vmoodle');
+$m = [];
+$m[] = get_string('january', 'report_vmoodle');
+$m[] = get_string('february', 'report_vmoodle');
+$m[] = get_string('march', 'report_vmoodle');
+$m[] = get_string('april', 'report_vmoodle');
+$m[] = get_string('may', 'report_vmoodle');
+$m[] = get_string('june', 'report_vmoodle');
+$m[] = get_string('july', 'report_vmoodle');
+$m[] = get_string('august', 'report_vmoodle');
+$m[] = get_string('september', 'report_vmoodle');
+$m[] = get_string('october', 'report_vmoodle');
+$m[] = get_string('november', 'report_vmoodle');
+$m[] = get_string('december', 'report_vmoodle');
+if (!empty($config->shiftyearstart)) {
+    for ($i = 0; $i < 7; $i++) {
+        // rotate to left 7 times.
+        $v = array_shift($m);
+        $m[] = $v;
+    }
+}
 $totalstr = get_string('year', 'report_vmoodle');
 
 $table = new html_table();
-$table->head = array($hostnamestr, $jan, $feb, $mar, $apr, $jun, $jul,  $aug, $sep, $oct, $nov, $dec, $totalstr);
+$table->head = array($hostnamestr, $m[0], $m[1], $m[2], $m[3], $m[4], $m[5], $m[6], $m[7], $m[8], $m[9], $m[10], $m[11], $totalstr);
 $table->size = array('25%', '5%', '5%', '5%', '5%', '5%', '5%', '5%', '5%', '5%', '5%', '5%', '5%', '5%');
 $table->align = array('left', 'center', 'center', 'center', 'center', 'center', 'center', 'center', 'center',
                       'center', 'center', 'center', 'center', 'center');
@@ -111,15 +136,15 @@ foreach ($vhosts as $vhost) {
     if ($SESSION->vmoodle_stat_distinct_users) {
         $sql = "
             SELECT
-                MONTH(FROM_UNIXTIME({$timefield})) as month,
+                CONCAT(MONTH(FROM_UNIXTIME({$timefield})), '-', MONTH(FROM_UNIXTIME({$timefield}))) as month,
                 COUNT(DISTINCT userid) as cnxs
             FROM
                 `{$vhost->vdbname}`.{$vhost->vdbprefix}{$logtable}
             WHERE
                 $actionclause
-                YEAR( FROM_UNIXTIME({$timefield})) = $year
+                $timeclause
             GROUP BY
-                MONTH( FROM_UNIXTIME({$timefield}))
+                YEAR( FROM_UNIXTIME({$timefield})), MONTH( FROM_UNIXTIME({$timefield}))
             ORDER BY
                 month
             ";
@@ -132,7 +157,7 @@ foreach ($vhosts as $vhost) {
                 `{$vhost->vdbname}`.{$vhost->vdbprefix}{$logtable}
             WHERE
                 $actionclause
-                YEAR( FROM_UNIXTIME({$timefield})) = $year
+                $timeclause
             GROUP
                 BY MONTH( FROM_UNIXTIME({$timefield}))
             ORDER BY

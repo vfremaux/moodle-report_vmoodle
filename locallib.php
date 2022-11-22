@@ -104,87 +104,57 @@ function mnet_report_assignment_get_types() {
     return $types;
 }
 
-function mnet_reports_get_assignmenttypes($vhost, $year) {
-    global $DB;
-
-    $yearclause = '';
-    if (!empty($year)) {
-        $yearclause = " AND YEAR( FROM_UNIXTIME(cm.added)) = $year ";
-    }
-
-    $sql = "
-        SELECT
-            a.assignmenttype as assignmenttype,
-            COUNT(*) as atcount
-        FROM
-            `{$vhost->vdbname}`.{$vhost->vdbprefix}assignment a,
-            `{$vhost->vdbname}`.{$vhost->vdbprefix}course_modules cm,
-            `{$vhost->vdbname}`.{$vhost->vdbprefix}modules m
-        WHERE
-            a.id = cm.instance AND
-            cm.module = m.id AND
-            m.name = 'assignment'
-            $yearclause
-        GROUP
-            BY assignmenttype
-        ORDER BY
-            assignmenttype
-    ";
-    return $DB->get_records_sql($sql);
-}
-
+/**
+ * get courses created in the period.
+ */
 function mnet_report_get_courses($vhost, $mode, $year) {
     global $DB;
 
-    $yearclause = '';
+    $config = get_config('report_vmoodle');
 
-    if ($mode == 0) {
-        if ($year) {
-            $yearclause = " AND YEAR(FROM_UNIXTIME(timecreated)) = $year ";
+    $coursecreationclause = '';
+    $coursecreationbeforeclause = '';
+    if ($year && $year < 9000) {
+        $yearstart = mktime(0, 0, 0, 1, 1, $year);
+        $yearend = mktime(0, 0, 0, 1, 1, $year + 1) - 1;
+        if (!empty($config->shiftyearstart)) {
+            $yearstart = mktime(0, 0, 0, 9, 1, $year);
+            $yearend = mktime(0, 0, 0, 9, 1, $year + 1) - 1;
         }
-        $sql = "
-            SELECT 
-                MONTH(FROM_UNIXTIME(timecreated)) as month,
-                COUNT(*) as coursecount
-            FROM 
-                `{$vhost->vdbname}`.{$vhost->vdbprefix}course c
-            WHERE 
-                c.id != 1
-                $yearclause
-            GROUP 
-                BY MONTH(FROM_UNIXTIME(timecreated))
-            ORDER BY
-                month
-        ";
-        $courses = $DB->get_records_sql($sql);
-    } else {
-        if ($year) {
-            $yearclause = " AND YEAR(FROM_UNIXTIME(timecreated)) <= $year";
-        }
-        $sql = "
-            SELECT
-                c.id,
-                CONCAT(YEAR(FROM_UNIXTIME(timecreated)), '-', MONTH(FROM_UNIXTIME(timecreated))) as calmonth,
-                YEAR(FROM_UNIXTIME(timecreated)) as year,
-                MONTH(FROM_UNIXTIME(timecreated)) as month
-            FROM 
-                `{$vhost->vdbname}`.{$vhost->vdbprefix}course c
-            WHERE 
-                c.id != 1
-                $yearclause
-            ORDER BY
-                calmonth ASC
-        ";
-        $courses = $DB->get_records_sql($sql);
-        foreach ($courses as $c) {
-            for ($m = 1 ; $m <= 12 ; $m++) {
-                if ($c->year < $year || $c->month < $m) {
-                    $courses[$m]->coursecount = 0 + @$courses[$m]->coursecount + 1;
-                }
-            }
-        }
+        $coursecreationclause = " AND timecreated >= $yearstart AND timecreated <= $yearend ";
+        $coursecreationbeforeclause = " AND timecreated < $yearstart ";
     }
-    return $courses;
+
+    $sql = "
+        SELECT 
+            CONCAT(YEAR(FROM_UNIXTIME(timecreated)), '-', MONTH(FROM_UNIXTIME(timecreated))) as calmonth,
+            COUNT(*) as coursecount,
+            MONTH(FROM_UNIXTIME(timecreated)) as month
+        FROM 
+            `{$vhost->vdbname}`.{$vhost->vdbprefix}course c
+        WHERE 
+            c.id != 1
+            $coursecreatedclause
+        GROUP 
+            BY MONTH(FROM_UNIXTIME(timecreated))
+        ORDER BY
+            calmonth
+    ";
+    $newcourses = $DB->get_records_sql($sql);
+
+    $sql = "
+        SELECT
+            COUNT(*) as oldercount
+        FROM 
+            `{$vhost->vdbname}`.{$vhost->vdbprefix}course c
+        WHERE 
+            c.id != 1
+            $coursecreatedbeforeclause
+    ";
+    $oldercourses = $DB->get_record_sql($sql);
+    $oldercoursescount = $oldercourses->oldercount;
+
+    return array($newcourses, $oldercoursescount);
 }
 
 function report_vmoodle_prepare_graph_structure($title) {
@@ -220,10 +190,11 @@ function report_vmoodle_prepare_graph_structure($title) {
     );
 }
 
-function report_vmoodle_get_fragment($fragmentname, $hostorname) {
+function report_vmoodle_get_fragment($fragmentname, $hostorname, $filter = []) {
     global $CFG;
 
     include_once($CFG->dirroot.'/report/vmoodle/classes/fragments/'.$fragmentname.'.class.php');
     $classname = '\\report_vmoodle\\fragment\\'.$fragmentname;
-    return new $classname($hostorname);
+    // We use fragment loader options to pass query filter.
+    return new $classname($hostorname, ['filter' => $filter]);
 }

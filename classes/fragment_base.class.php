@@ -48,6 +48,12 @@ abstract class base {
         $this->output = $PAGE->get_renderer('report_vmoodle');
     }
 
+    /**
+     * returns a report "per host" fragment row.
+     * @param objectref &$dataresult additional data that can be sent to the javascript
+     * fragment receiver.
+     * @return an html rendererd table row with actualized data.
+     */
     abstract public function get_fragment();
 
 }

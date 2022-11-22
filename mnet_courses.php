@@ -25,121 +25,103 @@ defined('MOODLE_INTERNAL') || die();
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+$config = get_config('report_vmoodle');
+
 $year = optional_param('year', date('Y'), PARAM_INT); 
 $mode = optional_param('mode', 0, PARAM_INT); 
-
-$str = '';
-$str .= '<form name="chooseyearform">';
-$years[] = get_string('whenever', 'report_vmoodle');
-for ($i = 0 ; $i < 15 ; $i++) {
-    $years[2009 + $i] = 2009 + $i;
-}
-
-$str .= get_string('addeddate', 'report_vmoodle');
-$str .= html_writer::select($years, 'year', $year, array());
 
 $modecreatedsel = ($mode == 0) ? 'checked="checked"' : '';
 $modecreatedbeforesel = ($mode == 1) ? 'checked="checked"' : '';
 
-$str .= ' <input type="radio" name="mode" value="0" '.$modecreatedsel.' />';
-$str .= get_string('created', 'report_vmoodle');
+$additionalinputs = ' <input type="radio" name="mode" value="0" '.$modecreatedsel.' />';
+$additionalinputs .= get_string('created', 'report_vmoodle');
 
-$str .= ' <input type="radio" name="mode" value="1" '.$modecreatedbeforesel.' />';
-$str .= get_string('createdbefore', 'report_vmoodle');
+$additionalinputs .= ' <input type="radio" name="mode" value="1" '.$modecreatedbeforesel.' />';
+$additionalinputs .= get_string('createdbefore', 'report_vmoodle');
 
-$gostr = get_string('apply', 'report_vmoodle');
-$str .= ' <input type="hidden" name="view" value="courses" />';
-$str .= ' <input type="submit" value="'.$gostr.'" />';
-$str .= '</form>';
+$str = '';
+$str .= $renderer->filter_form($additionalinputs);
 
-$str .= $OUTPUT->heading(get_string('courses'), 2);
-
-if (is_dir($CFG->dirroot.'/local/staticguitexts')) {
-    $str .= local_print_static_text('static_vmoodle_report_modules', $CFG->wwwroot.'/admin/report/vmoodle/view.php', '', true);
-}
-
-$str .= '<table width="100%"><tr>';
-
-$col = 0;
 $overall = 0 ;
 $totalstr = get_string('totalcourses', 'report_vmoodle');
 $allnodesstr = get_string('allnodes', 'report_vmoodle');
-$networktotalstr = get_string('networktotal', 'report_vmoodle');
 $yearlytotalstr = get_string('totalyearly', 'report_vmoodle');
 $shortyearlytotalstr = get_string('totalyearlyshort', 'report_vmoodle');
 
-$yearclause = '';
 $stdresultarr = array();
+$headers = array($hostnamestr);
+$firstline = true;
+$mstart = 1;
+if (!empty($config->shiftyearstart)) {
+    $mstart = 9;
+}
+
+$table = new html_table();
+$table->head = array($hostnamestr);
+$table->size = array('25%');
+$table->align = array('left');
+$table->width = '95%';
 
 foreach ($vhosts as $vhost) {
     $totcourses = 0;
 
-    $courses = mnet_report_get_courses($vhost, $mode, $yearclause);
+    list($courses, $previouscourses) = mnet_report_get_courses($vhost, $mode, $year);
 
-    $str .= '<td valign="top">';
-    $str .= '<table width="100%" class="generaltable">';
-    $str .= '<tr><th colspan="2" class="header c0" style="line-height:20px" >'.$vhost->name.'</th></tr>';
+    $row = array($renderer->host_full_name($vhost));
+    $stdresult = array($renderer->host_full_name($vhost));
 
-    $r = 0;
-    $yearly = 0;
+    $hostyearly = 0;
     if ($courses) {
-        for ($m = 1 ; $m <= 12 ; $m++) {
-            $count = 0 + @$courses[$m]->coursecount;
-            $yearly = $yearly + $count;
-            $overalmonthly[$m] = @$overalmonthly[$m] + $count;
-            $overall = $overall + $count;
-            $totcourses += $count;
-            if ($mode == 0) {
-                $coursesperhost[$vhost->name] = @$coursesperhost[$vhost->name] + $count;
-            } else {
-                $coursesperhost[$vhost->name] = $count;
+        $m = $mstart;
+        for ($i = 1 ; $i <= 12; $i++) {
+            if ($firstline) {
+                $dt = DateTime::createFromFormat('!m', $m);
+                $month = $dt->format('F');
+                $table->head[] = get_string(strtolower($month), 'report_vmoodle');
+                $headers[] = $month;
+                $m = ($m % 12) + 1;
             }
-            $str .= '<tr class="row r'.$r.'"><td width="80%" class="cell c0 report-vmoodle">'.$m.'</td><td width="20%" class="cell c1 report-vmoodle">'.$count.'</td></tr>';
-            $r = ($r + 1) % 2;
-            $stdresultarr[] = array($vhost->name, ($year) ? $year : get_string('whenever', 'report_vmoodle'), $m, $count);
+            $count = 0 + @$courses[$m]->coursecount;
+            $hostyearly = $hostyearly + $count; // line aggregation.
+            $overalmonthly[$i] = @$overalmonthly[$i] + $count; // monthly for all hosts.
+            $overall = $overall + $count; // overall for all hosts.
+            if ($mode == 0) {
+                $coursesperhost[$vhost->name] = 0 + @$coursesperhost[$vhost->name] + $count;
+            } else {
+                $coursesperhost[$vhost->name] = 0 + $count;
+            }
+            $row[] = $count;
+            $stdresult[] = $count;
         }
+        if ($firstline) {
+            $table->head[] = $yearlytotalstr;
+            $headers[] = $yearlytotalstr;
+        }
+        $row[] = $hostyearly;
+        $stdresult[] = $hostyearly;
     }
-    if ($mode == 0) {
-        $str .= '<tr class="row r'.$r.'"><td width="80%" class="cell c0 report-vmoodle">'.$totalstr.'</td><td width="20%" class="cell c1 report-vmoodle">'.$totcourses.'</td></tr>';
+
+    if ($firstline) {
+        $headerarr[] = $headers;
     }
-    $str .= '</table></td>';
-
-    $col++;
-    if ($col >= 4) {
-        $str .= '</tr><tr>';
-        $col = 0;
-    }
+    $stdresultarr[] = $stdresult;
+    $firstline = false;
+    $table->data[] = $row;
 }
 
-$str .= '</tr></table>';
+// Per month overall sumators.
+$lastrow = [''];
+for ($i = 0 ; $i < 12; $i++) {
+    $lastrow[] =  0 + $overalmonthly[$i];
+}
+$lastrow[] = $overall;
+$table->data[] = $lastrow;
 
-$str .= $OUTPUT->heading(get_string('coursetotals', 'report_vmoodle'), 2);
+$str .= $OUTPUT->heading(get_string('courses'));
 
-$str .= '<table width="100%"><tr valign="top"><td>';
-$overalmonthlystr = get_string('totalmonthly', 'report_vmoodle');
-$str .= '<table width="250" class="generaltable">';
-$str .= '<tr><th colspan="2" class="header c0 report-vmoodle">'.$overalmonthlystr.'</th></tr>';
-
-$r = 0;
-for ($m = 1 ; $m <= 12 ; $m++) {
-    $om = 0 + @$overalmonthly[$m];
-    $str .= '<tr class="row r'.$r.'"><td class="cell c0 report-vmoodle">'.$m.'</td><td class="cell c1">'.$om.'</td></tr>';
-    $r = ($r + 1) % 2;
+if (is_dir($CFG->dirroot.'/local/staticguitexts')) {
+    $returnurl = new moodle_url('/admin/report/vmoodle/view.php', array('view' => 'courses'));
+    $str .= local_print_static_text('static_vmoodle_report_courses', $returnurl, '', true);
 }
 
-if ($mode == 0) {
-    $str .= '<tr class="row r'.$r.'"><td class="cell c0 report-vmoodle">'.$yearlytotalstr.'</td><td class="cell c1 report-vmoodle">'.$overall.'</td></tr>';
-}
-$str .= '</table>';
-
-$str .= '</td><td>';
-
-$overalperhoststr = get_string('coursesperhost', 'report_vmoodle');
-$str .= '<table width="250" class="generaltable">';
-$str .= '<tr><th colspan="2" class="header c0 report-vmoodle">'.$overalperhoststr.'</th></tr>';
-foreach ($vhosts as $vhost) {
-    $str .= '<tr class="row r'.$r.'"><td class="cell c0 report-vmoodle">'.$vhost->name.'</td><td class="cell c1 report-vmoodle">'.@$coursesperhost[$vhost->name].'</td></tr>';
-}
-$str .= '</table>';
-
-$str .= '</td></tr></table>';
+$str .= html_writer::table($table);

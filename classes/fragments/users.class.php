@@ -39,7 +39,22 @@ class users extends base {
             $dataresult = new Stdclass;
         }
 
-        $firstaccessclause = '';
+        $config = get_config('report_vmoodle');
+
+        // Might come from fragment query "filter" attribute.
+        $year = @$this->options['filter']['year'];
+
+        $usercreationclause = '';
+        if (!empty($year) && $year < 9000) {
+            $yearstart = mktime(0, 0, 0, 1, 1, $year);
+            $yearend = mktime(0, 0, 0, 1, 1, $year + 1) - 1;
+            if (!empty($config->shiftyearstart)) {
+                $yearstart = mktime(0, 0, 0, 9, 1, $year);
+                $yearend = mktime(0, 0, 0, 9, 1, $year + 1) - 1;
+            }
+            $usercreationclause = " AND timecreated >= $yearstart AND timecreated <= $yearend ";
+        }
+
         $cnxedstr = get_string('cnxed', 'report_vmoodle');
         $uncnxedstr = get_string('uncnxed', 'report_vmoodle');
 
@@ -94,7 +109,7 @@ class users extends base {
             SELECT
                 SUM(CASE WHEN u.suspended = 0 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as localusers,
                 SUM(CASE WHEN u.suspended = 0 AND u.mnethostid != ".$localusershost." THEN 1 ELSE 0 END) as remoteusers,
-                SUM(CASE WHEN u.firstaccess = 0 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as localunconnected,
+                SUM(CASE WHEN u.firstaccess = 0 AND suspended = 0 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as localunconnected,
                 SUM(CASE WHEN u.suspended = 1 AND u.mnethostid = ".$localusershost." THEN 1 ELSE 0 END) as suspendedusers
                 $profilefields
             FROM
@@ -102,7 +117,7 @@ class users extends base {
                 $profilejoins
             WHERE
                 u.deleted = 0
-                $firstaccessclause
+                $usercreationclause
         ";
 
         $hoststats = $DB->get_records_sql($sql);
@@ -113,7 +128,7 @@ class users extends base {
                 $lus = $us->localusers;
                 $luu = $us->localunconnected;
                 $luc = $us->localusers - $us->localunconnected;
-                $ratio = sprintf('%.1f', $luc / $lus * 100).'%';
+                $ratio = ($lus == 0) ? 0 : sprintf('%.1f', $luc / $lus * 100).'%';
 
                 $row = new StdClass;
                 $row->hostname = $this->output->host_full_name($this->vhost->vhostname);
@@ -123,7 +138,7 @@ class users extends base {
                 $attrs = array('height' => '150', 'width' => 150);
                 $localusers .= '<br/>'.local_vflibs_jqplot_simple_donut($data, 'users_'.$this->vhost->id, 'report-vmoodle-user-charts', $attrs);
                 $row->localusers = $localusers;
-                $dataresult->locals = $luc;
+                $dataresult->localusers = $lus;
                 $dataresult->localsunconnected = $luu;
                 $row->remoteusers = $this->output->format_number($us->remoteusers);
                 $dataresult->remotes = $us->remoteusers;
@@ -156,6 +171,12 @@ class users extends base {
 
     }
 
+    /**
+     * returns a report "per host" fragment row.
+     * @param objectref &$dataresult additional data that can be sent to the javascript
+     * fragment receiver.
+     * @return an html rendererd table row with actualized data.
+     */
     public function get_fragment(&$dataresult = null) {
         global $OUTPUT;
 
